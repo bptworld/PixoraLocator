@@ -1,7 +1,7 @@
 ARG BUILD_FROM=ghcr.io/home-assistant/base:latest
 FROM ${BUILD_FROM}
 
-ARG BUILD_VERSION=1.0.1
+ARG BUILD_VERSION=1.0.2
 
 LABEL \
     io.hass.version="${BUILD_VERSION}" \
@@ -9,7 +9,8 @@ LABEL \
 
 ENV PYTHONUNBUFFERED=1
 
-RUN apk add --no-cache python3
+RUN apk upgrade --no-cache \
+    && apk add --no-cache python3
 
 COPY app.py /app/app.py
 COPY run.sh /run.sh

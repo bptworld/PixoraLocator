@@ -68,8 +68,8 @@ def run() -> None:
 
     config = CONFIG.read_text(encoding="utf-8")
     dockerfile = DOCKERFILE.read_text(encoding="utf-8")
-    assert 'version: "1.0.1"' in config and "ingress: true" in config and "ingress_port: 8099" in config
-    assert "ARG BUILD_VERSION=1.0.1" in dockerfile
+    assert 'version: "1.0.2"' in config and "ingress: true" in config and "ingress_port: 8099" in config
+    assert "ARG BUILD_VERSION=1.0.2" in dockerfile and "apk upgrade --no-cache" in dockerfile
 
 
 if __name__ == "__main__":
