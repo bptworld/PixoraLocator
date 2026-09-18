@@ -11,8 +11,8 @@ This is a native Home Assistant App, not a HACS integration.
 5. Go back to the **App Store**, select the three vertical dots, and select **Check for updates**.
 6. Scroll down the **App Store** or use search to find **Pixora Locator**.
 7. Select **Pixora Locator** and click **Install**.
-8. Start Pixora Locator and open it from the app page or sidebar.
-9. In the Pixora Locator phone app, open **Settings → Home Assistant App** and create a pairing token.
-10. Paste the token into this App's **Configuration** tab, save it, and restart the App.
+8. In the Pixora Locator phone app, open **Settings → Home Assistant App** and create a pairing token.
+9. Before starting the Home Assistant App, open its **Configuration** tab, paste the token, and click **Save**.
+10. Start Pixora Locator and open it from the app page or sidebar.
 
 The App starts automatically with Home Assistant. It reads only the current location point for each actively sharing phone. It does not receive or retain location history.

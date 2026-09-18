@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.3
+
+- Corrected every installation guide so the pairing token is saved before the Home Assistant App is started.
+
 ## 1.0.2
 
 - Upgraded base-image packages during builds and restricted container vulnerability enforcement to patchable operating-system packages.

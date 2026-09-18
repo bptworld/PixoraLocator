@@ -26,7 +26,7 @@ OPTIONS_PATH = Path("/data/options.json")
 REGISTRATIONS_PATH = Path("/data/registrations.json")
 PIXORA_URL = "https://planner.pixorahq.com/api/locator/home-assistant/current"
 HA_API = "http://supervisor/core/api"
-APP_VERSION = "1.0.2"
+APP_VERSION = "1.0.3"
 INGRESS_PORT = 8099
 LOGGER = logging.getLogger("pixora_locator")
 RUNNING = True
@@ -269,7 +269,7 @@ h2{{margin:0 0 8px;font-size:22px}}p{{margin:6px 0;color:var(--muted)}}.message{
 <header><div><div class="brand">PIXORA LOCATOR</div><h1>Home Assistant</h1></div><span class="badge">{html.escape(badge)}</span></header>
 <section class="card"><h2>Connection status</h2><p class="message">{message}</p><p>Last successful sync: {last_sync}</p></section>
 <section class="card"><h2>Household devices ({int(status.get('deviceCount') or 0)})</h2>{device_list}</section>
-<section class="card"><h2>Setup</h2><ol><li>Open Pixora Locator on your phone.</li><li>Open <strong>Settings → Home Assistant App</strong>.</li><li>Create a pairing token and paste it into this App's Configuration tab.</li><li>Save the configuration and restart the App.</li></ol><p>Only current locations are synchronized. Pixora Locator does not send location history or friend battery information.</p></section>
+<section class="card"><h2>Setup</h2><ol><li>Open Pixora Locator on your phone.</li><li>Open <strong>Settings → Home Assistant App</strong> and create a pairing token.</li><li>Open this Home Assistant App's <strong>Configuration</strong> tab and paste the token.</li><li>Click <strong>Save</strong>, then restart the Home Assistant App.</li></ol><p>Only current locations are synchronized. Pixora Locator does not send location history or friend battery information.</p></section>
 </main></body></html>"""
     return document.encode("utf-8")
 

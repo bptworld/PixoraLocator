@@ -16,10 +16,9 @@ Official Pixora Locator integrations for Home Assistant and Hubitat. The phone A
 5. After adding the repository, go back to the **App Store**, select the three vertical dots, and select **Check for updates**.
 6. Scroll down the **App Store** or use search to find **Pixora Locator**.
 7. Select **Pixora Locator** and click **Install**.
-8. Start Pixora Locator and open it from the app page or sidebar.
-9. In the Pixora Locator phone app, open **Settings → Home Assistant App** and create a pairing token.
-10. Paste the token into the Home Assistant App's **Configuration** tab and save it.
-11. Restart the Home Assistant App. Its page will show the connection and device status.
+8. In the Pixora Locator phone app, open **Settings → Home Assistant App** and create a pairing token.
+9. Before starting the Home Assistant App, open its **Configuration** tab, paste the token, and click **Save**.
+10. Start Pixora Locator and open it from the app page or sidebar. Its page will show the connection and device status.
 
 ## What it does
 

@@ -69,11 +69,12 @@ def run() -> None:
 
     config = CONFIG.read_text(encoding="utf-8")
     dockerfile = DOCKERFILE.read_text(encoding="utf-8")
-    assert 'version: "1.0.2"' in config and "ingress: true" in config and "ingress_port: 8099" in config
-    assert "ARG BUILD_VERSION=1.0.2" in dockerfile and "apk upgrade --no-cache" in dockerfile
+    assert 'version: "1.0.3"' in config and "ingress: true" in config and "ingress_port: 8099" in config
+    assert "ARG BUILD_VERSION=1.0.3" in dockerfile and "apk upgrade --no-cache" in dockerfile
     installation = ROOT_README.read_text(encoding="utf-8")
-    for instruction in ("Install App", "Repositories", "Check for updates", "https://github.com/bptworld/PixoraLocator"):
+    for instruction in ("Install App", "Repositories", "Check for updates", "https://github.com/bptworld/PixoraLocator", "Before starting the Home Assistant App"):
         assert instruction in installation
+    assert installation.index("create a pairing token") < installation.index("Before starting the Home Assistant App") < installation.index("Start Pixora Locator")
 
 
 if __name__ == "__main__":
