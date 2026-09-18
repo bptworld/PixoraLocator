@@ -8,6 +8,7 @@ from pathlib import Path
 SOURCE = Path(__file__).resolve().parents[1] / "pixora_locator" / "app.py"
 CONFIG = SOURCE.with_name("config.yaml")
 DOCKERFILE = SOURCE.with_name("Dockerfile")
+ROOT_README = SOURCE.parents[1] / "README.md"
 spec = importlib.util.spec_from_file_location("pixora_locator_ha_app", SOURCE)
 assert spec and spec.loader
 locator = importlib.util.module_from_spec(spec)
@@ -70,6 +71,9 @@ def run() -> None:
     dockerfile = DOCKERFILE.read_text(encoding="utf-8")
     assert 'version: "1.0.2"' in config and "ingress: true" in config and "ingress_port: 8099" in config
     assert "ARG BUILD_VERSION=1.0.2" in dockerfile and "apk upgrade --no-cache" in dockerfile
+    installation = ROOT_README.read_text(encoding="utf-8")
+    for instruction in ("Install App", "Repositories", "Check for updates", "https://github.com/bptworld/PixoraLocator"):
+        assert instruction in installation
 
 
 if __name__ == "__main__":
