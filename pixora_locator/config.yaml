@@ -1,0 +1,24 @@
+name: "Pixora Locator"
+version: "1.0.1"
+slug: "pixora_locator"
+description: "Bring current Pixora Locator positions into Home Assistant without HACS or location history."
+url: "https://github.com/bptworld/PixoraLocator"
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+startup: application
+boot: auto
+init: false
+homeassistant_api: true
+ingress: true
+ingress_port: 8099
+options:
+  pairing_token: ""
+  poll_seconds: 30
+schema:
+  pairing_token: password
+  poll_seconds: "int(15,300)"
+panel_icon: "mdi:map-marker-account"
