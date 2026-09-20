@@ -12,3 +12,11 @@
 5. In the Pixora Locator phone app, open **Settings → Where to send**, enable Hubitat delivery, and select the virtual device.
 
 PixoraHQ sends the current latitude, longitude, accuracy, saved-place name, presence, battery level, and capture time to the virtual device. Credentials stay on PixoraHQ; the phone never stores the Hubitat access token.
+
+## Device states
+
+The virtual device shows the phone's latest location information directly in Hubitat, including a report time formatted in the hub's local timezone.
+
+<img src="images/hubitat-current-states.png" width="500" alt="Hubitat Pixora Locator virtual device showing current location states with fictional coordinates">
+
+_Screenshot uses fictional coordinates._

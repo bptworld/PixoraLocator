@@ -43,6 +43,12 @@ The Home Assistant App source is in [`pixora_locator/`](pixora_locator/).
 
 ## Hubitat
 
+Each phone can update its own Pixora Locator virtual device with the latest location, saved Place, presence, accuracy, battery, and human-readable report time.
+
+<img src="hubitat/images/hubitat-current-states.png" width="500" alt="Hubitat Pixora Locator virtual device showing current location states with fictional coordinates">
+
+_Screenshot uses fictional coordinates._
+
 1. In Planner, connect Hubitat under **Setup Options → Hubitat** using the Maker API Cloud URL, App ID, and access token.
 2. In Hubitat, open **Drivers Code** and choose **New Driver**.
 3. Paste the contents of [`hubitat/PixoraLocator.groovy`](hubitat/PixoraLocator.groovy) and save it.
