@@ -43,10 +43,10 @@ The Home Assistant App source is in [`pixora_locator/`](pixora_locator/).
 
 ## Hubitat
 
-1. In Hubitat, open **Drivers Code** and choose **New Driver**.
-2. Paste the contents of [`hubitat/PixoraLocator.groovy`](hubitat/PixoraLocator.groovy) and save it.
-3. Open **Devices**, choose **Add Device → Virtual**, and select **Pixora Locator** as the device type.
-4. In Planner, connect Hubitat under **Setup Options**.
+1. In Planner, connect Hubitat under **Setup Options → Hubitat** using the Maker API Cloud URL, App ID, and access token.
+2. In Hubitat, open **Drivers Code** and choose **New Driver**.
+3. Paste the contents of [`hubitat/PixoraLocator.groovy`](hubitat/PixoraLocator.groovy) and save it.
+4. Open **Devices**, choose **Add Device → Virtual**, and select **Pixora Locator** as the device type, then enable it in Maker API.
 5. In the Pixora Locator phone app, enable Hubitat under **Settings → Where to send** and select the virtual device.
 
 The Hubitat driver source and detailed instructions are in [`hubitat/`](hubitat/).
