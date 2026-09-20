@@ -16,3 +16,5 @@ This is a native Home Assistant App, not a HACS integration.
 10. Start Pixora Locator and open it from the app page or sidebar.
 
 The App starts automatically with Home Assistant. It reads only the current location point for each actively sharing phone. It does not receive or retain location history.
+
+Each phone has a normal `device_tracker` for maps and zones plus a Location sensor containing the current Place, Place-since time, motion, sharing mode, coordinates, GPS accuracy, nearby area, and report timestamps. Home Assistant shows new App versions under **Settings → Apps** after its repository update check runs; use **Check for updates** in the App Store menu to check immediately.

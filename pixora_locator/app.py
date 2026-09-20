@@ -26,7 +26,7 @@ OPTIONS_PATH = Path("/data/options.json")
 REGISTRATIONS_PATH = Path("/data/registrations.json")
 PIXORA_URL = "https://planner.pixorahq.com/api/locator/home-assistant/current"
 HA_API = "http://supervisor/core/api"
-APP_VERSION = "1.0.3"
+APP_VERSION = "1.1.0"
 INGRESS_PORT = 8099
 LOGGER = logging.getLogger("pixora_locator")
 RUNNING = True
@@ -129,7 +129,7 @@ class LocatorBridge:
         webhook_id = str(response.get("webhook_id") or "")
         if not webhook_id:
             raise RuntimeError(f"Home Assistant did not return a webhook for {name}.")
-        registration = {"webhook_id": webhook_id, "name": name}
+        registration = {"webhook_id": webhook_id, "name": name, "app_version": APP_VERSION}
         self.registrations[device_id] = registration
         write_json(REGISTRATIONS_PATH, self.registrations)
         LOGGER.info("Registered managed Home Assistant tracker for %s", name)
@@ -144,7 +144,7 @@ class LocatorBridge:
         )
 
     def update_registration_name(self, registration: dict[str, str], name: str) -> None:
-        if registration.get("name") == name:
+        if registration.get("name") == name and registration.get("app_version") == APP_VERSION:
             return
         self.webhook(registration, "update_registration", {
             "app_version": APP_VERSION,
@@ -154,7 +154,44 @@ class LocatorBridge:
             "os_version": APP_VERSION,
         })
         registration["name"] = name
+        registration["app_version"] = APP_VERSION
         write_json(REGISTRATIONS_PATH, self.registrations)
+
+    def update_location_sensor(self, registration: dict[str, str], device: dict[str, Any], location: dict[str, Any] | None) -> None:
+        current_place = device.get("currentPlace") if isinstance(device.get("currentPlace"), dict) else {}
+        nearby = device.get("nearby") if isinstance(device.get("nearby"), dict) else {}
+        motion = str(device.get("motion") or "unavailable")
+        available = bool(device.get("available") and location)
+        state = str(current_place.get("name") or (nearby.get("label") if motion == "stationary" else "") or ("On the move" if available else "Unavailable"))[:255]
+        attributes: dict[str, Any] = {
+            "available": available,
+            "sharing": str(device.get("sharing") or "off"),
+            "motion": motion,
+        }
+        if location:
+            attributes.update({
+                "latitude": float(location["latitude"]),
+                "longitude": float(location["longitude"]),
+                "gps_accuracy": max(1, round(float(location.get("accuracy") or 1))),
+                "captured_at": str(location.get("capturedAt") or ""),
+                "received_at": str(location.get("receivedAt") or ""),
+            })
+        if current_place:
+            attributes["current_place"] = str(current_place.get("name") or "")
+            attributes["place_since"] = str(current_place.get("since") or "")
+        if nearby:
+            attributes["nearby"] = str(nearby.get("label") or "")
+        stationary_since = str(device.get("stationarySince") or "")
+        if stationary_since:
+            attributes["stationary_since"] = stationary_since
+        self.webhook(registration, "register_sensor", {
+            "type": "sensor",
+            "unique_id": "pixora_location",
+            "name": "Location",
+            "state": state,
+            "icon": "mdi:map-marker-account",
+            "attributes": attributes,
+        })
 
     def update(self, device: dict[str, Any]) -> None:
         device_id = str(device.get("deviceId") or "")
@@ -166,12 +203,14 @@ class LocatorBridge:
                 location = device.get("location") if isinstance(device.get("location"), dict) else None
                 if not device.get("available") or not location:
                     self.webhook(registration, "update_location", {"location_name": "not_home"})
+                    self.update_location_sensor(registration, device, None)
                     return
                 accuracy = max(1, round(float(location.get("accuracy") or 1)))
                 self.webhook(registration, "update_location", {
                     "gps": [float(location["latitude"]), float(location["longitude"])],
                     "gps_accuracy": accuracy,
                 })
+                self.update_location_sensor(registration, device, location)
                 return
             except RuntimeError as exc:
                 if attempt or not ("HTTP 404" in str(exc) or "HTTP 410" in str(exc)):

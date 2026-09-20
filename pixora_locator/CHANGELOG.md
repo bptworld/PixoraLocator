@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.0
+
+- Added a Location sensor for each phone with current Place, Place-since time, motion, sharing mode, latitude, longitude, GPS accuracy, nearby area, and report timestamps.
+- Fixed Home Assistant device firmware versions so they update after every Pixora Locator App upgrade.
+- Bumped the App version so Home Assistant shows the available update in the App store.
+
 ## 1.0.3
 
 - Corrected every installation guide so the pairing token is saved before the Home Assistant App is started.

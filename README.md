@@ -25,9 +25,11 @@ Official Pixora Locator integrations for Home Assistant and Hubitat. The phone A
 - Creates managed Home Assistant device trackers using Home Assistant's built-in Mobile App integration.
 - Uses each phone's saved Pixora Locator device name.
 - Synchronizes only the current position of household phones that are actively sharing.
+- Adds a Location sensor for each phone with current Place, since-time, movement state, sharing precision, coordinates, GPS accuracy, nearby area, and report times.
 - Marks a tracker away when sharing stops or its current position is unavailable.
 - Starts automatically with Home Assistant and recovers removed tracker registrations.
 - Provides its own Home Assistant page showing connection health, last sync, and device status.
+- Uses the Home Assistant App version so the App store displays an update when a newer Pixora Locator release is available.
 
 The Home Assistant App source is in [`pixora_locator/`](pixora_locator/).
 

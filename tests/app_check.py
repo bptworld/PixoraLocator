@@ -27,8 +27,12 @@ def run() -> None:
             "devices": [{
                 "deviceId": "phone-1",
                 "name": "Bryan's phone",
+                "sharing": "precise",
                 "available": True,
-                "location": {"latitude": 42.36, "longitude": -71.06, "accuracy": 9.4},
+                "motion": "stationary",
+                "stationarySince": "2026-09-19T12:00:00+00:00",
+                "currentPlace": {"name": "Home", "since": "2026-09-19T11:30:00+00:00"},
+                "location": {"latitude": 42.36, "longitude": -71.06, "accuracy": 9.4, "capturedAt": "2026-09-19T12:05:00+00:00", "receivedAt": "2026-09-19T12:05:02+00:00"},
             }]
         }
 
@@ -53,7 +57,23 @@ def run() -> None:
             assert registration[3]["device_id"] == "pixora_locator_phone-1"
             location = next(call for call in calls if call[3] and call[3].get("type") == "update_location")
             assert location[3]["data"] == {"gps": [42.36, -71.06], "gps_accuracy": 9}
-            assert json.loads(locator.REGISTRATIONS_PATH.read_text())["phone-1"]["webhook_id"] == "managed-webhook-1"
+            details = next(call for call in calls if call[3] and call[3].get("type") == "register_sensor")
+            assert details[3]["data"]["state"] == "Home"
+            assert details[3]["data"]["attributes"] == {
+                "available": True,
+                "sharing": "precise",
+                "motion": "stationary",
+                "latitude": 42.36,
+                "longitude": -71.06,
+                "gps_accuracy": 9,
+                "captured_at": "2026-09-19T12:05:00+00:00",
+                "received_at": "2026-09-19T12:05:02+00:00",
+                "current_place": "Home",
+                "place_since": "2026-09-19T11:30:00+00:00",
+                "stationary_since": "2026-09-19T12:00:00+00:00",
+            }
+            saved_registration = json.loads(locator.REGISTRATIONS_PATH.read_text())["phone-1"]
+            assert saved_registration["webhook_id"] == "managed-webhook-1" and saved_registration["app_version"] == "1.1.0"
             page = locator.status_page(bridge).decode()
             assert "Bryan&#x27;s phone" in page and "Connected" in page and "Last successful sync" in page
             assert "42.36" not in page and "-71.06" not in page and "pha1.test" not in page
@@ -64,13 +84,16 @@ def run() -> None:
             assert not any(call[0].endswith("/mobile_app/registrations") for call in calls)
             unavailable = next(call for call in calls if call[3] and call[3].get("type") == "update_location")
             assert unavailable[3]["data"] == {"location_name": "not_home"}
+            unavailable_details = next(call for call in calls if call[3] and call[3].get("type") == "register_sensor")
+            assert unavailable_details[3]["data"]["state"] == "Unavailable"
+            assert unavailable_details[3]["data"]["attributes"]["available"] is False
         finally:
             locator.request_json = original_request
 
     config = CONFIG.read_text(encoding="utf-8")
     dockerfile = DOCKERFILE.read_text(encoding="utf-8")
-    assert 'version: "1.0.3"' in config and "ingress: true" in config and "ingress_port: 8099" in config
-    assert "ARG BUILD_VERSION=1.0.3" in dockerfile and "apk upgrade --no-cache" in dockerfile
+    assert 'version: "1.1.0"' in config and "ingress: true" in config and "ingress_port: 8099" in config
+    assert "ARG BUILD_VERSION=1.1.0" in dockerfile and "apk upgrade --no-cache" in dockerfile
     installation = ROOT_README.read_text(encoding="utf-8")
     for instruction in ("Install App", "Repositories", "Check for updates", "https://github.com/bptworld/PixoraLocator", "Before starting the Home Assistant App"):
         assert instruction in installation
