@@ -1,7 +1,7 @@
 name: "Pixora Locator"
 version: "1.2.0"
 slug: "pixora_locator"
-description: "Bring current Pixora Locator positions into Home Assistant without HACS or location history."
+description: "Bring current Pixora Locator positions into Home Assistant with private pairing and no location history."
 url: "https://github.com/bptworld/PixoraLocator"
 arch:
   - aarch64

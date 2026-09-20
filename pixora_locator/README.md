@@ -1,6 +1,6 @@
 # Pixora Locator Home Assistant App
 
-This is a native Home Assistant App, not a HACS integration.
+Pixora Locator privately connects actively sharing phones to Home Assistant using a pairing token.
 
 ## Install
 
