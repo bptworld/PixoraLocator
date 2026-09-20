@@ -53,19 +53,25 @@ def updateLocation(String payload) {
     String capturedAt = (location.capturedAt ?: new Date().format("yyyy-MM-dd'T'HH:mm:ssXXX", TimeZone.getTimeZone("UTC"))).toString()
     sendEvent(name: "latitude", value: location.latitude.toString())
     sendEvent(name: "longitude", value: location.longitude.toString())
-    sendEvent(name: "accuracy", value: Math.max(0, (location.accuracy ?: 0) as BigDecimal), unit: "m")
+    BigDecimal accuracy = location.accuracy instanceof Number ? new BigDecimal(location.accuracy.toString()) : BigDecimal.ZERO
+    if (accuracy < BigDecimal.ZERO) accuracy = BigDecimal.ZERO
+    sendEvent(name: "accuracy", value: accuracy, unit: "m")
     sendEvent(name: "place", value: (location.place ?: "not_home").toString())
     sendEvent(name: "lastLocationAt", value: capturedAt)
     sendEvent(name: "presence", value: location.presence == "present" ? "present" : "not present")
     if (location.battery instanceof Number) {
-        sendEvent(name: "battery", value: Math.max(0, Math.min(100, location.battery as Integer)), unit: "%")
+        int battery = (location.battery as Number).intValue()
+        battery = Math.max(0, Math.min(100, battery))
+        sendEvent(name: "battery", value: battery, unit: "%")
     }
     sendEvent(name: "deliveryStatus", value: "current")
     state.lastDelivery = now()
 }
 
 def refresh() {
-    long maximumAge = Math.max(15, (settings.staleAfterMinutes ?: 45) as Long) * 60_000L
+    long staleMinutes = settings.staleAfterMinutes instanceof Number ? (settings.staleAfterMinutes as Number).longValue() : 45L
+    if (staleMinutes < 15L) staleMinutes = 15L
+    long maximumAge = staleMinutes * 60_000L
     if (state.lastDelivery && now() - (state.lastDelivery as Long) > maximumAge) {
         sendEvent(name: "deliveryStatus", value: "stale")
     }
