@@ -39,28 +39,36 @@ def initialize() {
 }
 
 def updateLocation(String payload) {
-    Map location
+    Map locationData
     try {
-        location = new JsonSlurper().parseText(payload ?: "{}") as Map
+        locationData = new JsonSlurper().parseText(payload ?: "{}") as Map
     } catch (Exception ignored) {
         sendEvent(name: "deliveryStatus", value: "invalid payload")
         return
     }
-    if (!(location.latitude instanceof Number) || !(location.longitude instanceof Number)) {
+    if (!(locationData.latitude instanceof Number) || !(locationData.longitude instanceof Number)) {
         sendEvent(name: "deliveryStatus", value: "invalid coordinates")
         return
     }
-    String capturedAt = (location.capturedAt ?: new Date().format("yyyy-MM-dd'T'HH:mm:ssXXX", TimeZone.getTimeZone("UTC"))).toString()
-    sendEvent(name: "latitude", value: location.latitude.toString())
-    sendEvent(name: "longitude", value: location.longitude.toString())
-    BigDecimal accuracy = location.accuracy instanceof Number ? new BigDecimal(location.accuracy.toString()) : BigDecimal.ZERO
+    String capturedAt = (locationData.capturedAt ?: new Date().format("yyyy-MM-dd'T'HH:mm:ssXXX", TimeZone.getTimeZone("UTC"))).toString()
+    String displayedAt = capturedAt
+    try {
+        long capturedMillis = java.time.OffsetDateTime.parse(capturedAt).toInstant().toEpochMilli()
+        TimeZone hubTimeZone = location?.timeZone ?: TimeZone.getDefault()
+        displayedAt = new Date(capturedMillis).format("M-d-yyyy h:mm a", hubTimeZone).toLowerCase()
+    } catch (Exception ignored) {
+        // Keep the original timestamp if an older sender provides an unexpected format.
+    }
+    sendEvent(name: "latitude", value: locationData.latitude.toString())
+    sendEvent(name: "longitude", value: locationData.longitude.toString())
+    BigDecimal accuracy = locationData.accuracy instanceof Number ? new BigDecimal(locationData.accuracy.toString()) : BigDecimal.ZERO
     if (accuracy < BigDecimal.ZERO) accuracy = BigDecimal.ZERO
     sendEvent(name: "accuracy", value: accuracy, unit: "m")
-    sendEvent(name: "place", value: (location.place ?: "not_home").toString())
-    sendEvent(name: "lastLocationAt", value: capturedAt)
-    sendEvent(name: "presence", value: location.presence == "present" ? "present" : "not present")
-    if (location.battery instanceof Number) {
-        int battery = (location.battery as Number).intValue()
+    sendEvent(name: "place", value: (locationData.place ?: "not_home").toString())
+    sendEvent(name: "lastLocationAt", value: displayedAt)
+    sendEvent(name: "presence", value: locationData.presence == "present" ? "present" : "not present")
+    if (locationData.battery instanceof Number) {
+        int battery = (locationData.battery as Number).intValue()
         battery = Math.max(0, Math.min(100, battery))
         sendEvent(name: "battery", value: battery, unit: "%")
     }
