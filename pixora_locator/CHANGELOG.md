@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+
+- Replaced the single attribute-heavy Location sensor with separate visible Place, Latitude, Longitude, GPS Accuracy, Since, Movement, Sharing Mode, and Last Report sensor rows on each phone device.
+- Reused the existing Location entity as Place so upgrades do not leave a duplicate legacy sensor behind.
+- Marked every location-detail sensor unavailable when its phone stops sharing or disappears from the current feed.
+
 ## 1.1.0
 
 - Added a Location sensor for each phone with current Place, Place-since time, motion, sharing mode, latitude, longitude, GPS accuracy, nearby area, and report timestamps.

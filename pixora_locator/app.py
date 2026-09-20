@@ -26,7 +26,7 @@ OPTIONS_PATH = Path("/data/options.json")
 REGISTRATIONS_PATH = Path("/data/registrations.json")
 PIXORA_URL = "https://planner.pixorahq.com/api/locator/home-assistant/current"
 HA_API = "http://supervisor/core/api"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 INGRESS_PORT = 8099
 LOGGER = logging.getLogger("pixora_locator")
 RUNNING = True
@@ -157,41 +157,32 @@ class LocatorBridge:
         registration["app_version"] = APP_VERSION
         write_json(REGISTRATIONS_PATH, self.registrations)
 
-    def update_location_sensor(self, registration: dict[str, str], device: dict[str, Any], location: dict[str, Any] | None) -> None:
+    def update_location_sensors(self, registration: dict[str, str], device: dict[str, Any], location: dict[str, Any] | None) -> None:
         current_place = device.get("currentPlace") if isinstance(device.get("currentPlace"), dict) else {}
         nearby = device.get("nearby") if isinstance(device.get("nearby"), dict) else {}
         motion = str(device.get("motion") or "unavailable")
         available = bool(device.get("available") and location)
-        state = str(current_place.get("name") or (nearby.get("label") if motion == "stationary" else "") or ("On the move" if available else "Unavailable"))[:255]
-        attributes: dict[str, Any] = {
-            "available": available,
-            "sharing": str(device.get("sharing") or "off"),
-            "motion": motion,
-        }
-        if location:
-            attributes.update({
-                "latitude": float(location["latitude"]),
-                "longitude": float(location["longitude"]),
-                "gps_accuracy": max(1, round(float(location.get("accuracy") or 1))),
-                "captured_at": str(location.get("capturedAt") or ""),
-                "received_at": str(location.get("receivedAt") or ""),
-            })
-        if current_place:
-            attributes["current_place"] = str(current_place.get("name") or "")
-            attributes["place_since"] = str(current_place.get("since") or "")
-        if nearby:
-            attributes["nearby"] = str(nearby.get("label") or "")
-        stationary_since = str(device.get("stationarySince") or "")
-        if stationary_since:
-            attributes["stationary_since"] = stationary_since
-        self.webhook(registration, "register_sensor", {
-            "type": "sensor",
-            "unique_id": "pixora_location",
-            "name": "Location",
-            "state": state,
-            "icon": "mdi:map-marker-account",
-            "attributes": attributes,
-        })
+        unavailable = "unavailable"
+        place = str(
+            current_place.get("name")
+            or (nearby.get("label") if motion == "stationary" else "")
+            or ("On the move" if available else unavailable)
+        )[:255]
+        since = str(current_place.get("since") or device.get("stationarySince") or "") if available else ""
+        sharing = str(device.get("sharing") or "off")
+        report_time = str(location.get("receivedAt") or location.get("capturedAt") or "") if location else ""
+        sensors: list[dict[str, Any]] = [
+            {"unique_id": "pixora_location", "name": "Place", "state": place, "icon": "mdi:map-marker-account"},
+            {"unique_id": "pixora_latitude", "name": "Latitude", "state": float(location["latitude"]) if location else unavailable, "icon": "mdi:latitude", "unit_of_measurement": "°"},
+            {"unique_id": "pixora_longitude", "name": "Longitude", "state": float(location["longitude"]) if location else unavailable, "icon": "mdi:longitude", "unit_of_measurement": "°"},
+            {"unique_id": "pixora_gps_accuracy", "name": "GPS Accuracy", "state": max(1, round(float(location.get("accuracy") or 1))) if location else unavailable, "icon": "mdi:crosshairs-gps", "unit_of_measurement": "m"},
+            {"unique_id": "pixora_since", "name": "Since", "state": since or unavailable, "icon": "mdi:clock-start", "device_class": "timestamp"},
+            {"unique_id": "pixora_movement", "name": "Movement", "state": motion.replace("_", " ").title() if available else unavailable, "icon": "mdi:run"},
+            {"unique_id": "pixora_sharing_mode", "name": "Sharing Mode", "state": sharing.replace("_", " ").title() if sharing != "off" else "Off", "icon": "mdi:shield-account"},
+            {"unique_id": "pixora_last_report", "name": "Last Report", "state": report_time or unavailable, "icon": "mdi:clock-check-outline", "device_class": "timestamp"},
+        ]
+        for sensor in sensors:
+            self.webhook(registration, "register_sensor", {"type": "sensor", "attributes": {}, **sensor})
 
     def update(self, device: dict[str, Any]) -> None:
         device_id = str(device.get("deviceId") or "")
@@ -203,14 +194,14 @@ class LocatorBridge:
                 location = device.get("location") if isinstance(device.get("location"), dict) else None
                 if not device.get("available") or not location:
                     self.webhook(registration, "update_location", {"location_name": "not_home"})
-                    self.update_location_sensor(registration, device, None)
+                    self.update_location_sensors(registration, device, None)
                     return
                 accuracy = max(1, round(float(location.get("accuracy") or 1)))
                 self.webhook(registration, "update_location", {
                     "gps": [float(location["latitude"]), float(location["longitude"])],
                     "gps_accuracy": accuracy,
                 })
-                self.update_location_sensor(registration, device, location)
+                self.update_location_sensors(registration, device, location)
                 return
             except RuntimeError as exc:
                 if attempt or not ("HTTP 404" in str(exc) or "HTTP 410" in str(exc)):
@@ -233,6 +224,7 @@ class LocatorBridge:
         for device_id, registration in list(self.registrations.items()):
             if device_id not in seen:
                 self.webhook(registration, "update_location", {"location_name": "not_home"})
+                self.update_location_sensors(registration, {"available": False, "sharing": "off", "motion": "unavailable"}, None)
         now = time.strftime("%Y-%m-%d %H:%M:%S %Z")
         visible_devices = [
             {

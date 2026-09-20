@@ -57,23 +57,21 @@ def run() -> None:
             assert registration[3]["device_id"] == "pixora_locator_phone-1"
             location = next(call for call in calls if call[3] and call[3].get("type") == "update_location")
             assert location[3]["data"] == {"gps": [42.36, -71.06], "gps_accuracy": 9}
-            details = next(call for call in calls if call[3] and call[3].get("type") == "register_sensor")
-            assert details[3]["data"]["state"] == "Home"
-            assert details[3]["data"]["attributes"] == {
-                "available": True,
-                "sharing": "precise",
-                "motion": "stationary",
-                "latitude": 42.36,
-                "longitude": -71.06,
-                "gps_accuracy": 9,
-                "captured_at": "2026-09-19T12:05:00+00:00",
-                "received_at": "2026-09-19T12:05:02+00:00",
-                "current_place": "Home",
-                "place_since": "2026-09-19T11:30:00+00:00",
-                "stationary_since": "2026-09-19T12:00:00+00:00",
-            }
+            sensor_calls = [call for call in calls if call[3] and call[3].get("type") == "register_sensor"]
+            assert len(sensor_calls) == 8
+            sensors = {call[3]["data"]["name"]: call[3]["data"] for call in sensor_calls}
+            assert set(sensors) == {"Place", "Latitude", "Longitude", "GPS Accuracy", "Since", "Movement", "Sharing Mode", "Last Report"}
+            assert sensors["Place"]["unique_id"] == "pixora_location" and sensors["Place"]["state"] == "Home"
+            assert sensors["Latitude"]["state"] == 42.36 and sensors["Latitude"]["unit_of_measurement"] == "°"
+            assert sensors["Longitude"]["state"] == -71.06 and sensors["Longitude"]["unit_of_measurement"] == "°"
+            assert sensors["GPS Accuracy"]["state"] == 9 and sensors["GPS Accuracy"]["unit_of_measurement"] == "m"
+            assert sensors["Since"]["state"] == "2026-09-19T11:30:00+00:00" and sensors["Since"]["device_class"] == "timestamp"
+            assert sensors["Movement"]["state"] == "Stationary"
+            assert sensors["Sharing Mode"]["state"] == "Precise"
+            assert sensors["Last Report"]["state"] == "2026-09-19T12:05:02+00:00" and sensors["Last Report"]["device_class"] == "timestamp"
+            assert all(sensor["attributes"] == {} for sensor in sensors.values())
             saved_registration = json.loads(locator.REGISTRATIONS_PATH.read_text())["phone-1"]
-            assert saved_registration["webhook_id"] == "managed-webhook-1" and saved_registration["app_version"] == "1.1.0"
+            assert saved_registration["webhook_id"] == "managed-webhook-1" and saved_registration["app_version"] == "1.2.0"
             page = locator.status_page(bridge).decode()
             assert "Bryan&#x27;s phone" in page and "Connected" in page and "Last successful sync" in page
             assert "42.36" not in page and "-71.06" not in page and "pha1.test" not in page
@@ -84,16 +82,25 @@ def run() -> None:
             assert not any(call[0].endswith("/mobile_app/registrations") for call in calls)
             unavailable = next(call for call in calls if call[3] and call[3].get("type") == "update_location")
             assert unavailable[3]["data"] == {"location_name": "not_home"}
-            unavailable_details = next(call for call in calls if call[3] and call[3].get("type") == "register_sensor")
-            assert unavailable_details[3]["data"]["state"] == "Unavailable"
-            assert unavailable_details[3]["data"]["attributes"]["available"] is False
+            unavailable_sensors = [call[3]["data"] for call in calls if call[3] and call[3].get("type") == "register_sensor"]
+            assert len(unavailable_sensors) == 8
+            assert next(sensor for sensor in unavailable_sensors if sensor["name"] == "Sharing Mode")["state"] == "Off"
+            assert all(sensor["state"] == "unavailable" for sensor in unavailable_sensors if sensor["name"] != "Sharing Mode")
+
+            calls.clear()
+            snapshot["devices"] = []
+            bridge.poll()
+            assert next(call for call in calls if call[3] and call[3].get("type") == "update_location")[3]["data"] == {"location_name": "not_home"}
+            missing_sensors = [call[3]["data"] for call in calls if call[3] and call[3].get("type") == "register_sensor"]
+            assert len(missing_sensors) == 8
+            assert all(sensor["state"] == "unavailable" for sensor in missing_sensors if sensor["name"] != "Sharing Mode")
         finally:
             locator.request_json = original_request
 
     config = CONFIG.read_text(encoding="utf-8")
     dockerfile = DOCKERFILE.read_text(encoding="utf-8")
-    assert 'version: "1.1.0"' in config and "ingress: true" in config and "ingress_port: 8099" in config
-    assert "ARG BUILD_VERSION=1.1.0" in dockerfile and "apk upgrade --no-cache" in dockerfile
+    assert 'version: "1.2.0"' in config and "ingress: true" in config and "ingress_port: 8099" in config
+    assert "ARG BUILD_VERSION=1.2.0" in dockerfile and "apk upgrade --no-cache" in dockerfile
     installation = ROOT_README.read_text(encoding="utf-8")
     for instruction in ("Install App", "Repositories", "Check for updates", "https://github.com/bptworld/PixoraLocator", "Before starting the Home Assistant App"):
         assert instruction in installation
