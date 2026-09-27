@@ -13,6 +13,23 @@
 
 PixoraHQ sends the current latitude, longitude, accuracy, saved-place name, presence, battery level, and capture time to the virtual device. Credentials stay on PixoraHQ; the phone never stores the Hubitat access token.
 
+## One-time OwnTracks Place migration
+
+The separate `PixoraLocatorOwnTracksImporter.groovy` Hubitat app can turn regions already managed by the OwnTracks Hubitat app into ordinary Pixora Locator Places. It uses OwnTracks' existing **Send Region List to Secondary Hub** feature; it does not modify OwnTracks or read OwnTracks' private app state.
+
+1. In Hubitat, open **Apps Code**, choose **New App**, paste `PixoraLocatorOwnTracksImporter.groovy`, save it, and enable OAuth for that app code.
+2. Open **Apps → Add User App → Pixora Locator OwnTracks Importer** and finish installing it.
+3. Open the importer and select **Arm receiver for 10 minutes**.
+4. Copy its private local receiver URL.
+5. In OwnTracks, open **Link Secondary Hub**, paste that URL, and temporarily enable the secondary hub.
+6. In OwnTracks, open **Configure Regions** and select **Send Region List to Secondary Hub**.
+7. As soon as the importer confirms receipt, disable the OwnTracks secondary hub and clear its URL.
+8. In the Pixora importer, choose up to 50 Places and download the `.pixora` file.
+9. In Locator, open **Settings → OwnTracks Places from Hubitat**, choose the file, review the Places, and import them.
+10. Delete the downloaded file and select **Clear temporary capture** in Hubitat.
+
+The receiver works only for ten minutes after being armed and disarms after one successful list. It rejects live location messages and stores no member location, history, alerts, credentials, or phone details. Captured Place definitions expire from Hubitat automatically after one hour. Synthetic `+follow` regions and Places pending deletion are excluded. New Locator Places begin without history or alerts; an existing matching Place keeps its existing activity and settings.
+
 ## Device states
 
 The virtual device shows the phone's latest location information directly in Hubitat, including a report time formatted in the hub's local timezone.

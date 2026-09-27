@@ -9,6 +9,8 @@ SOURCE = Path(__file__).resolve().parents[1] / "pixora_locator" / "app.py"
 CONFIG = SOURCE.with_name("config.yaml")
 DOCKERFILE = SOURCE.with_name("Dockerfile")
 ROOT_README = SOURCE.parents[1] / "README.md"
+HUBITAT_IMPORTER = SOURCE.parents[1] / "hubitat" / "PixoraLocatorOwnTracksImporter.groovy"
+HUBITAT_README = SOURCE.parents[1] / "hubitat" / "README.md"
 spec = importlib.util.spec_from_file_location("pixora_locator_ha_app", SOURCE)
 assert spec and spec.loader
 locator = importlib.util.module_from_spec(spec)
@@ -178,6 +180,27 @@ def run() -> None:
     for instruction in ("Install App", "Repositories", "Check for updates", "https://github.com/bptworld/PixoraLocator", "Before starting the Home Assistant App"):
         assert instruction in installation
     assert installation.index("create a pairing token") < installation.index("Before starting the Home Assistant App") < installation.index("Start Pixora Locator")
+    importer = HUBITAT_IMPORTER.read_text(encoding="utf-8")
+    for marker in (
+        'name: "Pixora Locator OwnTracks Importer"',
+        'getFullLocalApiServerUrl()',
+        'MAX_CAPTURED_PLACES = 75',
+        'MAX_EXPORTED_PLACES = 50',
+        'incoming?._type != "waypoints"',
+        'name.startsWith("+")',
+        'latitude == 999',
+        'state.remove("armedUntil")',
+        'runIn(RETENTION_SECONDS, "clearExpiredCapture"',
+        'pixora-locator-hubitat-owntracks-migration-envelope',
+        'MessageDigest.getInstance("SHA-256")',
+        '"Content-Disposition": "attachment; filename=',
+        '"Cache-Control": "no-store"',
+    ):
+        assert marker in importer, marker
+    assert "state.capturedPlaces = places" in importer and "state.capturedLocations" not in importer
+    hubitat_instructions = HUBITAT_README.read_text(encoding="utf-8")
+    for instruction in ("enable OAuth", "Arm receiver for 10 minutes", "Send Region List to Secondary Hub", "clear its URL", "Clear temporary capture"):
+        assert instruction in hubitat_instructions
 
 
 if __name__ == "__main__":

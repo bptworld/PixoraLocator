@@ -68,3 +68,9 @@ _Screenshot uses fictional coordinates._
 5. In the Pixora Locator phone app, enable Hubitat under **Settings → Where to send** and select the virtual device.
 
 The Hubitat driver source and detailed instructions are in [`hubitat/`](hubitat/).
+
+### One-time OwnTracks Place migration
+
+Install the separate [`Pixora Locator OwnTracks Importer`](hubitat/PixoraLocatorOwnTracksImporter.groovy) Hubitat app to receive an OwnTracks region list through OwnTracks' existing Secondary Hub transfer. The importer is armed manually, accepts only a waypoint list, rejects live locations, and automatically deletes its temporary Place definitions after one hour. It creates a checksummed `.pixora` file containing only selected Place names, center points, radii, and stable OwnTracks waypoint IDs.
+
+Locator imports up to 50 selected OwnTracks Places into a household with a maximum of 75 Places. It imports no location history, arrival/departure activity, alert settings, members, credentials, or continuing synchronization. OwnTracks itself is not changed.
