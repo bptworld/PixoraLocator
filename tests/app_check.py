@@ -20,7 +20,9 @@ def run() -> None:
         root = Path(directory)
         locator.OPTIONS_PATH = root / "options.json"
         locator.REGISTRATIONS_PATH = root / "registrations.json"
+        locator.MIGRATION_SOURCE_PATH = root / "migration-source-id"
         locator.OPTIONS_PATH.write_text(json.dumps({"pairing_token": "pha1.test", "poll_seconds": 30}), encoding="utf-8")
+        locator.REGISTRATIONS_PATH.write_text(json.dumps({"broken": "not-a-registration"}), encoding="utf-8")
         os.environ["SUPERVISOR_TOKEN"] = "supervisor-test-token"
         calls = []
         snapshot = {
@@ -36,10 +38,19 @@ def run() -> None:
             }]
         }
 
-        def fake_request(url, *, token="", method="GET", payload=None, timeout=20):
+        def fake_request(url, *, token="", method="GET", payload=None, timeout=20, max_bytes=1_000_000):
             calls.append((url, token, method, payload))
             if url == locator.PIXORA_URL:
                 return snapshot
+            if url.endswith("/states"):
+                return [
+                    {"entity_id": "zone.home", "state": "1", "attributes": {"friendly_name": "Home", "latitude": 42.36, "longitude": -71.06, "radius": 100, "icon": "mdi:home"}},
+                    {"entity_id": "zone.x", "state": "0", "attributes": {"friendly_name": "X", "latitude": 42.35, "longitude": -71.05, "radius": 75}},
+                    {"entity_id": "zone.invalid", "state": "0", "attributes": {"friendly_name": "Invalid", "latitude": "nan", "longitude": -71.06, "radius": 100}},
+                    {"entity_id": "zone.boolean", "state": "0", "attributes": {"friendly_name": "Boolean", "latitude": True, "longitude": -71.06, "radius": 100}},
+                    {"entity_id": "zone.Bad", "state": "0", "attributes": {"friendly_name": "Bad identity", "latitude": 42.35, "longitude": -71.05, "radius": 75}},
+                    {"entity_id": "zone." + "x" * 196, "state": "0", "attributes": {"friendly_name": "Too long", "latitude": 42.35, "longitude": -71.05, "radius": 75}},
+                ]
             if url.endswith("/mobile_app/registrations"):
                 return {"webhook_id": "managed-webhook-1"}
             if "/webhook/" in url:
@@ -50,6 +61,7 @@ def run() -> None:
         locator.request_json = fake_request
         try:
             bridge = locator.LocatorBridge()
+            assert bridge.registrations == {}
             bridge.validate()
             bridge.poll()
             registration = next(call for call in calls if call[0].endswith("/mobile_app/registrations"))
@@ -71,11 +83,72 @@ def run() -> None:
             assert sensors["Last Report"]["state"] == "2026-09-19T12:05:02+00:00" and sensors["Last Report"]["device_class"] == "timestamp"
             assert all(sensor["attributes"] == {} for sensor in sensors.values())
             saved_registration = json.loads(locator.REGISTRATIONS_PATH.read_text())["phone-1"]
-            assert saved_registration["webhook_id"] == "managed-webhook-1" and saved_registration["app_version"] == "1.2.0"
+            assert saved_registration["webhook_id"] == "managed-webhook-1" and saved_registration["app_version"] == "1.4.0"
             page = locator.status_page(bridge).decode()
             assert "Bryan&#x27;s phone" in page and "Connected" in page and "Last successful sync" in page
             assert "42.36" not in page and "-71.06" not in page and "pha1.test" not in page
+            assert "Migrate Home Assistant zones" in page and "Places only" in page
+            assert "Location history" not in page
+            assert "Invalid" not in page and "Boolean" not in page and "Bad identity" not in page and "Too long" not in page and "migration.js" in page and "X Place" in page
+            assert "selection-count" in page
+            catalog = bridge.migration_catalog()
+            assert next(item for item in catalog["zones"] if item["entityId"] == "zone.x")["name"] == "X Place"
 
+            calls.clear()
+            document = json.loads(bridge.create_migration(["zone.home"]))
+            assert document["format"] == "pixora-locator-home-assistant-migration-envelope" and document["version"] == 3
+            assert document["sha256"] == locator.hashlib.sha256(document["payload"].encode()).hexdigest()
+            migration = json.loads(document["payload"])
+            assert migration["format"] == "pixora-locator-home-assistant-migration" and migration["version"] == 3
+            assert migration["zones"][0]["name"] == "Home" and migration["zones"][0]["radiusMeters"] == 100
+            assert migration["sourceInstanceId"] == locator.MIGRATION_SOURCE_PATH.read_text().strip()
+            assert not {"trackers", "historyDays", "locations", "activities"}.intersection(migration)
+            assert not any("/history/period/" in call[0] or call[0].endswith("/template") for call in calls)
+            original_states = bridge.home_assistant_states
+            bridge.home_assistant_states = lambda: [
+                {"entity_id": f"zone.place_{index}", "attributes": {"friendly_name": f"Place {index}", "latitude": 42.0 + index / 1000, "longitude": -71.0, "radius": 100}}
+                for index in range(locator.MAX_MIGRATION_ZONES + 1)
+            ]
+            try:
+                crowded_page = locator.status_page(bridge).decode()
+                assert crowded_page.count('name="zone"') == locator.MAX_MIGRATION_ZONES + 1
+                assert crowded_page.count(" checked") == locator.MAX_MIGRATION_ZONES
+                bridge.create_migration([f"zone.place_{index}" for index in range(locator.MAX_MIGRATION_ZONES + 1)])
+                raise AssertionError("Oversized migration selection was accepted")
+            except RuntimeError as exc:
+                assert "no more than 50 zones" in str(exc)
+            finally:
+                bridge.home_assistant_states = original_states
+            original_port = locator.INGRESS_PORT
+            locator.INGRESS_PORT = 0
+            server = locator.start_status_server(bridge)
+            try:
+                base_url = f"http://127.0.0.1:{server.server_address[1]}"
+                with locator.urllib.request.urlopen(f"{base_url}/", timeout=5) as response:
+                    live_page = response.read()
+                    assert response.headers["Cache-Control"] == "no-store"
+                    assert b"Migrate Home Assistant zones" in live_page
+                with locator.urllib.request.urlopen(f"{base_url}/migration.js", timeout=5) as response:
+                    migration_script = response.read()
+                    assert b"maximum=50" in migration_script and response.headers["X-Content-Type-Options"] == "nosniff"
+                export_form = locator.urllib.parse.urlencode({"csrf": bridge.migration_csrf, "zone": "zone.home"}).encode()
+                export_request = locator.urllib.request.Request(f"{base_url}/migration/export", data=export_form, method="POST")
+                with locator.urllib.request.urlopen(export_request, timeout=5) as response:
+                    exported_document = json.loads(response.read())
+                    assert response.headers["Cache-Control"] == "no-store"
+                    assert response.headers["Content-Disposition"].endswith('.pixora"')
+                    assert exported_document["format"] == "pixora-locator-home-assistant-migration-envelope"
+                expired_form = locator.urllib.parse.urlencode({"csrf": "expired", "zone": "zone.home"}).encode()
+                expired_request = locator.urllib.request.Request(f"{base_url}/migration/export", data=expired_form, method="POST")
+                try:
+                    locator.urllib.request.urlopen(expired_request, timeout=5)
+                    raise AssertionError("Expired migration CSRF was accepted")
+                except locator.urllib.error.HTTPError as exc:
+                    assert exc.code == 403
+            finally:
+                server.shutdown()
+                server.server_close()
+                locator.INGRESS_PORT = original_port
             calls.clear()
             snapshot["devices"][0] = {"deviceId": "phone-1", "name": "Bryan's phone", "available": False}
             bridge.poll()
@@ -99,8 +172,8 @@ def run() -> None:
 
     config = CONFIG.read_text(encoding="utf-8")
     dockerfile = DOCKERFILE.read_text(encoding="utf-8")
-    assert 'version: "1.2.0"' in config and "ingress: true" in config and "ingress_port: 8099" in config
-    assert "ARG BUILD_VERSION=1.2.0" in dockerfile and "apk upgrade --no-cache" in dockerfile
+    assert 'version: "1.4.0"' in config and "ingress: true" in config and "ingress_port: 8099" in config
+    assert "ARG BUILD_VERSION=1.4.0" in dockerfile and "apk upgrade --no-cache" in dockerfile
     installation = ROOT_README.read_text(encoding="utf-8")
     for instruction in ("Install App", "Repositories", "Check for updates", "https://github.com/bptworld/PixoraLocator", "Before starting the Home Assistant App"):
         assert instruction in installation

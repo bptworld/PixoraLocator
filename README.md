@@ -20,6 +20,8 @@ Official Pixora Locator integrations for Home Assistant and Hubitat. The phone A
 9. Before starting the Home Assistant App, open its **Configuration** tab, paste the token, and click **Save**.
 10. Start Pixora Locator and open it from the app page or sidebar. Its page will show the connection and device status.
 
+The same page can create a one-time `.pixora` migration file from selected Home Assistant zones. Locator turns them into Places without reading or importing location, arrival, or departure history and without keeping a permanent Home Assistant connection. New Places start fresh; existing matching Places remain unchanged.
+
 ## Home Assistant device details
 
 Each shared phone appears as one Home Assistant device with its current location details available as individual sensors.

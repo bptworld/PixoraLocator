@@ -1,7 +1,7 @@
 name: "Pixora Locator"
-version: "1.2.0"
+version: "1.4.0"
 slug: "pixora_locator"
-description: "Bring current Pixora Locator positions into Home Assistant with private pairing and no location history."
+description: "Connect Pixora Locator to Home Assistant and import selected zones as fresh Locator Places."
 url: "https://github.com/bptworld/PixoraLocator"
 arch:
   - aarch64

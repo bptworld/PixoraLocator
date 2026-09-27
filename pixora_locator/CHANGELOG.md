@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.0
+
+- Changed migration to export selected Home Assistant zones only.
+- Ensured no location, arrival, or departure history is imported; new Places start fresh and existing matches remain unchanged.
+- Added verifiable file integrity and a stable Home Assistant source identity for safe retries.
+- Added visible preparation feedback while the zone file is created.
+
+## 1.3.0
+
+- Added a one-time zone migration exporter to the Pixora Locator Home Assistant page.
+- Exports selected Home Assistant zones in a versioned `.pixora` file.
+- Keeps Home Assistant credentials and unrelated entities out of the downloaded migration file.
+
 ## 1.2.0
 
 - Replaced the single attribute-heavy Location sensor with separate visible Place, Latitude, Longitude, GPS Accuracy, Since, Movement, Sharing Mode, and Last Report sensor rows on each phone device.
