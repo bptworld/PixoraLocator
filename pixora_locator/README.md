@@ -19,8 +19,16 @@ The App starts automatically with Home Assistant. Normal synchronization reads o
 
 ## Import Home Assistant Places
 
-Open the Pixora Locator App page in Home Assistant and use **Migrate Home Assistant zones**. Choose the zones to turn into Locator Places and create the checksummed `.pixora` file. Import that file from Locator Settings, confirm the preview, and delete the downloaded file when the migration finishes. New Places start fresh, just like Places added directly in Locator; an existing matching Place keeps its current activity and settings.
+1. Open the Pixora Locator App page in Home Assistant and select **Migrate Home Assistant zones**.
+2. Choose up to 50 zones and create the checksummed `.pixora` file.
+3. On the phone, open **Locator → Settings → Home Assistant App → Import Home Assistant Places**.
+4. Choose the file, review the zones, turn off any you do not want, and select **Import Places**.
+5. After Locator confirms the import, delete the downloaded file.
+
+A Locator household can keep up to 75 Places. New Places start fresh, just like Places added directly in Locator; an existing matching Place keeps its current activity and settings. The import is a one-time copy, not a continuing synchronization.
 
 The file contains only the selected zone definitions. It contains no tracker records or location, arrival, or departure history, and never contains Home Assistant passwords, access tokens, automations, or unrelated sensor data.
+
+The Pixora Locator Home Assistant App can run beside the official Home Assistant Companion App while you create the file. It reads the zone definitions through Home Assistant and does not change, disable, or replace the Companion App.
 
 Each phone has a normal `device_tracker` for maps and zones. The same device also shows separate Place, Latitude, Longitude, GPS Accuracy, Since, Movement, Sharing Mode, and Last Report sensor rows, making the details directly usable in dashboards and automations. Home Assistant shows new App versions under **Settings → Apps** after its repository update check runs; use **Check for updates** in the App Store menu to check immediately.

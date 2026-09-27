@@ -20,7 +20,17 @@ Official Pixora Locator integrations for Home Assistant and Hubitat. The phone A
 9. Before starting the Home Assistant App, open its **Configuration** tab, paste the token, and click **Save**.
 10. Start Pixora Locator and open it from the app page or sidebar. Its page will show the connection and device status.
 
-The same page can create a one-time `.pixora` migration file from selected Home Assistant zones. Locator turns them into Places without reading or importing location, arrival, or departure history and without keeping a permanent Home Assistant connection. New Places start fresh; existing matching Places remain unchanged.
+The same page can create a one-time `.pixora` migration file from selected Home Assistant zones. Locator turns them into Places without reading or importing location, arrival, or departure history and without creating a continuing synchronization. New Places start fresh; existing matching Places keep their current settings and activity.
+
+### One-time zone migration
+
+1. Open the **Pixora Locator** App page in Home Assistant and select **Migrate Home Assistant zones**.
+2. Choose up to 50 zones and download the checksummed `.pixora` file.
+3. On the phone, open **Locator → Settings → Home Assistant App → Import Home Assistant Places**.
+4. Choose the file, review the zones, turn off any you do not want, and select **Import Places**.
+5. After Locator confirms the import, delete the downloaded file.
+
+A Locator household can keep up to 75 Places. The migration imports zone names, center points, and radii only. It never includes tracker records, recorder history, arrival or departure activity, passwords, access tokens, automations, or unrelated entities. The Pixora Locator Home Assistant App can run beside the official Home Assistant Companion App while the file is created; the two apps do not replace or modify each other. After the one-time import, the new Locator Places are independent of Home Assistant.
 
 ## Home Assistant device details
 
