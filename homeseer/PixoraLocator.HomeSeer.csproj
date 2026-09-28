@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net462</TargetFramework>
+    <AssemblyName>HSPI_PixoraLocator</AssemblyName>
+    <RootNamespace>HSPI_PixoraLocator</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <Prefer32Bit>false</Prefer32Bit>
+    <Version>1.0.0</Version>
+    <Authors>Pixora</Authors>
+    <Description>Pixora Locator current-location integration for HomeSeer HS4.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="HomeSeer-PluginSDK" Version="1.5.1" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+</Project>

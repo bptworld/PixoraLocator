@@ -29,6 +29,22 @@ jobs:
       - name: Test Home Assistant bridge and page
         run: python tests/app_check.py
 
+  homeseer-checks:
+    name: HomeSeer checks
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d # v5.1.0
+        with:
+          dotnet-version: "8.0.x"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Build HomeSeer plugin
+        run: dotnet build homeseer/PixoraLocator.HomeSeer.csproj -c Release --nologo
+      - name: Test HomeSeer integration safeguards
+        run: python tests/homeseer_plugin_check.py
+
   container-security:
     name: Container security
     runs-on: ubuntu-latest

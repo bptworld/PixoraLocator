@@ -1,6 +1,6 @@
 # PixoraLocator
 
-Official Pixora Locator integrations for Home Assistant and Hubitat. The phone APK is distributed separately and is not stored in this repository.
+Official Pixora Locator integrations for Home Assistant, Hubitat, and HomeSeer. The phone APK is distributed separately and is not stored in this repository.
 
 ## Home Assistant
 
@@ -74,3 +74,13 @@ The Hubitat driver source and detailed instructions are in [`hubitat/`](hubitat/
 Install the separate [`Pixora Locator OwnTracks Importer`](hubitat/PixoraLocatorOwnTracksImporter.groovy) Hubitat app to receive an OwnTracks region list through OwnTracks' existing Secondary Hub transfer. The importer is armed manually, accepts only a waypoint list, rejects live locations, and automatically deletes its temporary Place definitions after one hour. It creates a checksummed `.pixora` file containing only selected Place names, center points, radii, and stable OwnTracks waypoint IDs.
 
 Locator imports up to 50 selected OwnTracks Places into a household with a maximum of 75 Places. It imports no location history, arrival/departure activity, alert settings, members, credentials, or continuing synchronization. OwnTracks itself is not changed.
+
+## HomeSeer HS4
+
+The HomeSeer plugin creates one device for each sharing phone in the paired Locator household. Each device exposes the phone's current latitude, longitude, GPS accuracy, saved Place, presence at a saved Place, battery, movement, sharing mode, report time, and since time. It never requests or stores a route or location history.
+
+1. Install the plugin files in the HomeSeer program directory and enable **Pixora Locator**.
+2. In the Locator phone app, open **Settings → HomeSeer** and create a household pairing token.
+3. In HomeSeer, open **Plugins → Pixora Locator → Settings**, paste the token, and save it.
+
+The HomeSeer source, build command, privacy behavior, and full installation instructions are in [`homeseer/`](homeseer/).
