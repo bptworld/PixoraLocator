@@ -12,7 +12,7 @@ It reads only Locator's current state. It does not request, download, or create 
 
 ## Install
 
-1. Download the repository and build the plugin with `dotnet publish homeseer/PixoraLocator.HomeSeer.csproj -c Release`.
+1. Download `PixoraLocator-HomeSeer-1.0.0.zip` from this repository's **Releases** page, or build the plugin from source with `dotnet publish homeseer/PixoraLocator.HomeSeer.csproj -c Release`.
 2. Stop HomeSeer.
 3. Copy the files from the publish folder into the HomeSeer program directory. `HSPI_PixoraLocator.exe` must be in the same directory as the other HSPI executables.
 4. Start HomeSeer and enable **Pixora Locator** under **Plugins**.
