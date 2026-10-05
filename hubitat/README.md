@@ -32,6 +32,10 @@ The receiver works only for ten minutes after being armed and disarms after one 
 
 ## Device states
 
+The driver also exposes `distanceFromHome`, `speed`, and `charging` for dashboards and rules. Distance is straight-line distance to the latitude/longitude in **Hubitat → Settings → Hub Details**, not driving distance or distance to the edge of a saved Place. Check those home coordinates before using it. Each received location recalculates distance and speed. **Distance and speed units** defaults to miles/mph; kilometers/km/h is also available.
+
+`charging` reports **charging**, **not charging**, or **unknown** (older phone versions or unavailable battery status). A full battery connected to power counts as charging. Missing or invalid speed and unavailable home coordinates leave the corresponding numeric attribute empty instead of pretending it is zero. Stale delivery leaves the last reported measurements in place with `deliveryStatus: stale`; clearing sharing clears these measurements and resets charging to unknown. These are last-report values, not a separate live battery feed.
+
 The virtual device shows the phone's latest location information directly in Hubitat, including a report time formatted in the hub's local timezone.
 
 <img src="images/hubitat-current-states.png" width="500" alt="Hubitat Pixora Locator virtual device showing current location states with fictional coordinates">
