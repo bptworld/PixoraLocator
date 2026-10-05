@@ -16,6 +16,11 @@ metadata {
         attribute "distanceFromHome", "number"
         attribute "charging", "enum", ["charging", "not charging", "unknown"]
         attribute "speed", "number"
+        attribute "locationHealth", "string"
+        attribute "movement", "string"
+        attribute "atPlaceSince", "string"
+        attribute "sharingMode", "string"
+        attribute "batteryUnrestricted", "enum", ["yes", "no", "unknown"]
 
         command "updateLocation", [[name: "Location payload", type: "STRING", description: "Pixora Locator JSON payload"]]
         command "clearLocation"
@@ -39,10 +44,13 @@ def initialize() {
     sendEvent(name: "presence", value: device.currentValue("presence") ?: "not present")
     sendEvent(name: "deliveryStatus", value: device.currentValue("deliveryStatus") ?: "waiting")
     sendEvent(name: "charging", value: device.currentValue("charging") ?: "unknown")
+    for (String name in ["movement", "sharingMode", "batteryUnrestricted", "locationHealth"]) {
+        sendEvent(name: name, value: device.currentValue(name) ?: "unknown")
+    }
     updateDistanceFromHome(device.currentValue("latitude"), device.currentValue("longitude"))
     updateSpeed(state.speedMetersPerSecond)
     unschedule()
-    runEvery15Minutes("refresh")
+    runEvery1Minute("refresh")
 }
 
 def updateLocation(String payload) {
@@ -59,8 +67,10 @@ def updateLocation(String payload) {
     }
     String capturedAt = (locationData.capturedAt ?: new Date().format("yyyy-MM-dd'T'HH:mm:ssXXX", TimeZone.getTimeZone("UTC"))).toString()
     String displayedAt = capturedAt
+    long reportAge = 0L
     try {
         long capturedMillis = java.time.OffsetDateTime.parse(capturedAt).toInstant().toEpochMilli()
+        reportAge = Math.max(0L, now() - capturedMillis)
         TimeZone hubTimeZone = location?.timeZone ?: TimeZone.getDefault()
         displayedAt = new Date(capturedMillis).format("M-d-yyyy h:mm a", hubTimeZone).toLowerCase()
     } catch (Exception ignored) {
@@ -72,6 +82,13 @@ def updateLocation(String payload) {
     state.speedMetersPerSecond = validSpeed(locationData.speed) ? locationData.speed : null
     updateSpeed(state.speedMetersPerSecond)
     sendEvent(name: "charging", value: locationData.charging instanceof Boolean ? (locationData.charging ? "charging" : "not charging") : "unknown")
+    sendEvent(name: "batteryUnrestricted", value: locationData.batteryUnrestricted instanceof Boolean ? (locationData.batteryUnrestricted ? "yes" : "no") : "unknown")
+    sendEvent(name: "sharingMode", value: locationData.sharingMode in ["precise", "approximate", "off"] ? locationData.sharingMode : "unknown")
+    sendEvent(name: "movement", value: (locationData.movement ?: "unknown").toString())
+    sendEvent(name: "atPlaceSince", value: (locationData.atPlaceSince ?: "").toString())
+    sendEvent(name: "locationHealth", value: locationData.locationHealth in ["current", "delayed", "stale", "one-time"] ? locationData.locationHealth : "current")
+    state.oneTimeReport = locationData.locationHealth == "one-time"
+    state.healthAgeOffset = Math.max(reportAge, locationData.locationHealth == "stale" ? 30 * 60_000L + 1 : locationData.locationHealth == "delayed" ? 5 * 60_000L + 1 : 0L)
     BigDecimal accuracy = locationData.accuracy instanceof Number ? new BigDecimal(locationData.accuracy.toString()) : BigDecimal.ZERO
     if (accuracy < BigDecimal.ZERO) accuracy = BigDecimal.ZERO
     sendEvent(name: "accuracy", value: accuracy, unit: "m")
@@ -85,6 +102,7 @@ def updateLocation(String payload) {
     }
     sendEvent(name: "deliveryStatus", value: "current")
     state.lastDelivery = now()
+    refresh()
 }
 
 def refresh() {
@@ -93,12 +111,21 @@ def refresh() {
     long staleMinutes = settings.staleAfterMinutes instanceof Number ? (settings.staleAfterMinutes as Number).longValue() : 45L
     if (staleMinutes < 15L) staleMinutes = 15L
     long maximumAge = staleMinutes * 60_000L
+    if (state.lastDelivery) {
+        long age = now() - (state.lastDelivery as Long) + ((state.healthAgeOffset ?: 0L) as Long)
+        sendEvent(name: "locationHealth", value: age > 30 * 60_000L ? "stale" : age > 5 * 60_000L ? "delayed" : state.oneTimeReport ? "one-time" : "current")
+    }
     if (state.lastDelivery && now() - (state.lastDelivery as Long) > maximumAge) {
         sendEvent(name: "deliveryStatus", value: "stale")
     }
 }
 
 def clearLocation() {
+    sendEvent(name: "locationHealth", value: "off")
+    sendEvent(name: "sharingMode", value: "off")
+    sendEvent(name: "movement", value: "unavailable")
+    sendEvent(name: "atPlaceSince", value: "")
+    sendEvent(name: "batteryUnrestricted", value: "unknown")
     sendEvent(name: "distanceFromHome", value: "", unit: settings.distanceUnits == "km" ? "km" : "mi")
     sendEvent(name: "speed", value: "", unit: settings.distanceUnits == "km" ? "km/h" : "mph")
     sendEvent(name: "charging", value: "unknown")
@@ -111,6 +138,8 @@ def clearLocation() {
     sendEvent(name: "presence", value: "not present")
     sendEvent(name: "deliveryStatus", value: "disabled")
     state.remove("lastDelivery")
+    state.remove("healthAgeOffset")
+    state.remove("oneTimeReport")
 }
 
 private boolean validCoordinate(value, int maximum) {

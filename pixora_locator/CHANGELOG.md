@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0
+
+- Added Battery, Charging, Speed, Distance from Home, Location Health, and Battery Unrestricted sensors to each phone device.
+- Calculate straight-line distance using Home Assistant's Home zone, with miles/mph or kilometers/km/h units.
+- Update all sensor states together using the existing location feed, without additional phone GPS polling.
+- Keep missing measurements unavailable rather than reporting misleading zero values. Battery Unrestricted reports Android battery-optimization exemption; unsupported phones remain unavailable.
+
 ## 1.4.0
 
 - Changed migration to export selected Home Assistant zones only.

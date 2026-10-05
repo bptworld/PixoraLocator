@@ -34,7 +34,7 @@ REGISTRATIONS_PATH = Path("/data/registrations.json")
 MIGRATION_SOURCE_PATH = Path("/data/migration-source-id")
 PIXORA_URL = "https://planner.pixorahq.com/api/locator/home-assistant/current"
 HA_API = "http://supervisor/core/api"
-APP_VERSION = "1.4.0"
+APP_VERSION = "1.5.0"
 INGRESS_PORT = 8099
 MAX_MIGRATION_ZONES = 50
 MAX_MIGRATION_FILE_BYTES = 512_000
@@ -107,6 +107,9 @@ class LocatorBridge:
         except (TypeError, ValueError):
             poll_seconds = 30
         self.poll_seconds = max(15, min(300, poll_seconds))
+        self.distance_units = "km" if options.get("distance_units") == "km" else "mi"
+        self.home_coordinates: tuple[float, float] | None = None
+        self.home_checked_at = 0.0
         self.supervisor_token = str(os.environ.get("SUPERVISOR_TOKEN") or "").strip()
         self.migration_csrf = secrets.token_urlsafe(24)
         self.migration_lock = threading.Lock()
@@ -274,7 +277,7 @@ class LocatorBridge:
         LOGGER.info("Registered managed Home Assistant tracker for %s", name)
         return registration
 
-    def webhook(self, registration: dict[str, str], message_type: str, data: dict[str, Any]) -> None:
+    def webhook(self, registration: dict[str, str], message_type: str, data: dict[str, Any] | list[dict[str, Any]]) -> None:
         request_json(
             f"{HA_API}/webhook/{registration['webhook_id']}",
             token=self.supervisor_token,
@@ -296,6 +299,36 @@ class LocatorBridge:
         registration["app_version"] = APP_VERSION
         write_json(REGISTRATIONS_PATH, self.registrations)
 
+    def distance_from_home(self, location: dict[str, Any]) -> float | None:
+        # Read the local Home zone once per minute, shared by all household devices.
+        if self.home_checked_at == 0 or time.monotonic() - self.home_checked_at >= 60:
+            self.home_checked_at = time.monotonic()
+            self.home_coordinates = None
+            try:
+                zone = request_json(f"{HA_API}/states/zone.home", token=self.supervisor_token)
+                attributes = zone.get("attributes", {}) if isinstance(zone, dict) else {}
+                attributes = attributes if isinstance(attributes, dict) else {}
+                lat, lon = attributes.get("latitude"), attributes.get("longitude")
+                if not isinstance(lat, bool) and not isinstance(lon, bool) and math.isfinite(float(lat)) and math.isfinite(float(lon)) and -90 <= float(lat) <= 90 and -180 <= float(lon) <= 180:
+                    self.home_coordinates = (float(lat), float(lon))
+            except (RuntimeError, TypeError, ValueError):
+                pass  # Missing home configuration must never become a false zero distance.
+        if self.home_coordinates is None:
+            return None
+        try:
+            lat, lon = float(location["latitude"]), float(location["longitude"])
+            if not math.isfinite(lat) or not math.isfinite(lon) or not -90 <= lat <= 90 or not -180 <= lon <= 180:
+                return None
+            home_lat, home_lon = self.home_coordinates
+            delta_lat = math.radians(home_lat - lat)
+            delta_lon = math.radians(home_lon - lon)
+            a = math.sin(delta_lat / 2) ** 2 + math.cos(math.radians(lat)) * math.cos(math.radians(home_lat)) * math.sin(delta_lon / 2) ** 2
+            a = min(1.0, max(0.0, a))
+            kilometers = 6371.0088 * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+            return round(kilometers if self.distance_units == "km" else kilometers / 1.609344, 2)
+        except (KeyError, TypeError, ValueError):
+            return None
+
     def update_location_sensors(self, registration: dict[str, str], device: dict[str, Any], location: dict[str, Any] | None) -> None:
         current_place = device.get("currentPlace") if isinstance(device.get("currentPlace"), dict) else {}
         nearby = device.get("nearby") if isinstance(device.get("nearby"), dict) else {}
@@ -310,6 +343,14 @@ class LocatorBridge:
         since = str(current_place.get("since") or device.get("stationarySince") or "") if available else ""
         sharing = str(device.get("sharing") or "off")
         report_time = str(location.get("receivedAt") or location.get("capturedAt") or "") if location else ""
+        battery = device.get("battery") if available else None
+        battery = battery if isinstance(battery, (int, float)) and not isinstance(battery, bool) and math.isfinite(battery) and 0 <= battery <= 100 else None
+        charging = device.get("charging") if available else None
+        unrestricted = device.get("batteryUnrestricted") if available else None
+        speed = location.get("speed") if available else None
+        speed = round(speed * (3.6 if self.distance_units == "km" else 2.2369362921), 1) if isinstance(speed, (int, float)) and not isinstance(speed, bool) and math.isfinite(speed) and 0 <= speed <= 100 else None
+        distance = self.distance_from_home(location) if available else None
+        health = str(device.get("locationHealth") or ("off" if sharing == "off" else "unknown"))
         sensors: list[dict[str, Any]] = [
             {"unique_id": "pixora_location", "name": "Place", "state": place, "icon": "mdi:map-marker-account"},
             {"unique_id": "pixora_latitude", "name": "Latitude", "state": float(location["latitude"]) if location else unavailable, "icon": "mdi:latitude", "unit_of_measurement": "°"},
@@ -319,9 +360,16 @@ class LocatorBridge:
             {"unique_id": "pixora_movement", "name": "Movement", "state": motion.replace("_", " ").title() if available else unavailable, "icon": "mdi:run"},
             {"unique_id": "pixora_sharing_mode", "name": "Sharing Mode", "state": sharing.replace("_", " ").title() if sharing != "off" else "Off", "icon": "mdi:shield-account"},
             {"unique_id": "pixora_last_report", "name": "Last Report", "state": report_time or unavailable, "icon": "mdi:clock-check-outline", "device_class": "timestamp"},
+            {"unique_id": "pixora_battery", "name": "Battery", "state": battery if battery is not None else unavailable, "icon": "mdi:battery", "device_class": "battery", "unit_of_measurement": "%"},
+            {"unique_id": "pixora_charging", "name": "Charging", "state": ("Charging" if charging else "Not charging") if isinstance(charging, bool) else unavailable, "icon": "mdi:battery-charging"},
+            {"unique_id": "pixora_speed", "name": "Speed", "state": speed if speed is not None else unavailable, "icon": "mdi:speedometer", "unit_of_measurement": "km/h" if self.distance_units == "km" else "mph"},
+            {"unique_id": "pixora_distance_from_home", "name": "Distance from Home", "state": distance if distance is not None else unavailable, "icon": "mdi:map-marker-distance", "unit_of_measurement": self.distance_units},
+            {"unique_id": "pixora_location_health", "name": "Location Health", "state": health.replace("-", " ").title(), "icon": "mdi:heart-pulse"},
+            {"unique_id": "pixora_battery_unrestricted", "name": "Battery Unrestricted", "state": ("Yes" if unrestricted else "No") if isinstance(unrestricted, bool) else unavailable, "icon": "mdi:battery-lock-open"},
         ]
         for sensor in sensors:
             self.webhook(registration, "register_sensor", {"type": "sensor", "attributes": {}, **sensor})
+        self.webhook(registration, "update_sensor_states", [{"type": "sensor", "unique_id": sensor["unique_id"], "state": sensor["state"], "attributes": {}} for sensor in sensors])
 
     def update(self, device: dict[str, Any]) -> None:
         device_id = str(device.get("deviceId") or "")

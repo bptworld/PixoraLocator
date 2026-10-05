@@ -33,10 +33,14 @@ def run() -> None:
                 "name": "Bryan's phone",
                 "sharing": "precise",
                 "available": True,
+                "battery": 55,
+                "charging": False,
+                "batteryUnrestricted": True,
+                "locationHealth": "current",
                 "motion": "stationary",
                 "stationarySince": "2026-09-19T12:00:00+00:00",
                 "currentPlace": {"name": "Home", "since": "2026-09-19T11:30:00+00:00"},
-                "location": {"latitude": 42.36, "longitude": -71.06, "accuracy": 9.4, "capturedAt": "2026-09-19T12:05:00+00:00", "receivedAt": "2026-09-19T12:05:02+00:00"},
+                "location": {"latitude": 42.36, "longitude": -71.06, "accuracy": 9.4, "speed": 10, "capturedAt": "2026-09-19T12:05:00+00:00", "receivedAt": "2026-09-19T12:05:02+00:00"},
             }]
         }
 
@@ -44,6 +48,8 @@ def run() -> None:
             calls.append((url, token, method, payload))
             if url == locator.PIXORA_URL:
                 return snapshot
+            if url.endswith("/states/zone.home"):
+                return {"attributes": {"latitude": 42.36, "longitude": -71.06}}
             if url.endswith("/states"):
                 return [
                     {"entity_id": "zone.home", "state": "1", "attributes": {"friendly_name": "Home", "latitude": 42.36, "longitude": -71.06, "radius": 100, "icon": "mdi:home"}},
@@ -72,9 +78,17 @@ def run() -> None:
             location = next(call for call in calls if call[3] and call[3].get("type") == "update_location")
             assert location[3]["data"] == {"gps": [42.36, -71.06], "gps_accuracy": 9}
             sensor_calls = [call for call in calls if call[3] and call[3].get("type") == "register_sensor"]
-            assert len(sensor_calls) == 8
+            assert len(sensor_calls) == 14
             sensors = {call[3]["data"]["name"]: call[3]["data"] for call in sensor_calls}
-            assert set(sensors) == {"Place", "Latitude", "Longitude", "GPS Accuracy", "Since", "Movement", "Sharing Mode", "Last Report"}
+            assert set(sensors) == {"Place", "Latitude", "Longitude", "GPS Accuracy", "Since", "Movement", "Sharing Mode", "Last Report", "Battery", "Charging", "Speed", "Distance from Home", "Location Health", "Battery Unrestricted"}
+            assert sensors["Battery"]["state"] == 55
+            assert sensors["Charging"]["state"] == "Not charging"
+            assert sensors["Speed"]["state"] == 22.4
+            assert sensors["Distance from Home"]["state"] == 0
+            assert sensors["Battery Unrestricted"]["state"] == "Yes"
+            assert sensors["Location Health"]["state"] == "Current"
+            updates = [call[3]["data"] for call in calls if call[3] and call[3].get("type") == "update_sensor_states"]
+            assert len(updates[-1]) == 14
             assert sensors["Place"]["unique_id"] == "pixora_location" and sensors["Place"]["state"] == "Home"
             assert sensors["Latitude"]["state"] == 42.36 and sensors["Latitude"]["unit_of_measurement"] == "°"
             assert sensors["Longitude"]["state"] == -71.06 and sensors["Longitude"]["unit_of_measurement"] == "°"
@@ -84,8 +98,26 @@ def run() -> None:
             assert sensors["Sharing Mode"]["state"] == "Precise"
             assert sensors["Last Report"]["state"] == "2026-09-19T12:05:02+00:00" and sensors["Last Report"]["device_class"] == "timestamp"
             assert all(sensor["attributes"] == {} for sensor in sensors.values())
+            calls.clear()
+            bridge.distance_units = "km"
+            bridge.update_location_sensors(bridge.registrations["phone-1"], snapshot["devices"][0], snapshot["devices"][0]["location"])
+            metric_sensors = {call[3]["data"]["name"]: call[3]["data"] for call in calls if call[3] and call[3].get("type") == "register_sensor"}
+            assert metric_sensors["Speed"]["state"] == 36.0 and metric_sensors["Speed"]["unit_of_measurement"] == "km/h"
+            assert metric_sensors["Distance from Home"]["unit_of_measurement"] == "km"
+            assert 111 < bridge.distance_from_home({"latitude": 43.36, "longitude": -71.06}) < 112
+            calls.clear()
+            older_device = {**snapshot["devices"][0], "charging": None, "batteryUnrestricted": None}
+            bridge.update_location_sensors(bridge.registrations["phone-1"], older_device, {**older_device["location"], "speed": -1})
+            unknown_sensors = {call[3]["data"]["name"]: call[3]["data"] for call in calls if call[3] and call[3].get("type") == "register_sensor"}
+            assert all(unknown_sensors[name]["state"] == "unavailable" for name in ("Charging", "Battery Unrestricted", "Speed"))
+            bridge.distance_units = "mi"
+            bridge.home_checked_at = 0
+            locator.request_json = lambda *args, **kwargs: {"attributes": None}
+            assert bridge.distance_from_home(snapshot["devices"][0]["location"]) is None
+            locator.request_json = fake_request
+            bridge.home_checked_at = 0
             saved_registration = json.loads(locator.REGISTRATIONS_PATH.read_text())["phone-1"]
-            assert saved_registration["webhook_id"] == "managed-webhook-1" and saved_registration["app_version"] == "1.4.0"
+            assert saved_registration["webhook_id"] == "managed-webhook-1" and saved_registration["app_version"] == "1.5.0"
             page = locator.status_page(bridge).decode()
             assert "Bryan&#x27;s phone" in page and "Connected" in page and "Last successful sync" in page
             assert "42.36" not in page and "-71.06" not in page and "pha1.test" not in page
@@ -158,24 +190,25 @@ def run() -> None:
             unavailable = next(call for call in calls if call[3] and call[3].get("type") == "update_location")
             assert unavailable[3]["data"] == {"location_name": "not_home"}
             unavailable_sensors = [call[3]["data"] for call in calls if call[3] and call[3].get("type") == "register_sensor"]
-            assert len(unavailable_sensors) == 8
+            assert len(unavailable_sensors) == 14
             assert next(sensor for sensor in unavailable_sensors if sensor["name"] == "Sharing Mode")["state"] == "Off"
-            assert all(sensor["state"] == "unavailable" for sensor in unavailable_sensors if sensor["name"] != "Sharing Mode")
+            assert all(sensor["state"] == "unavailable" for sensor in unavailable_sensors if sensor["name"] not in {"Sharing Mode", "Location Health"})
+            assert next(sensor for sensor in unavailable_sensors if sensor["name"] == "Location Health")["state"] == "Off"
 
             calls.clear()
             snapshot["devices"] = []
             bridge.poll()
             assert next(call for call in calls if call[3] and call[3].get("type") == "update_location")[3]["data"] == {"location_name": "not_home"}
             missing_sensors = [call[3]["data"] for call in calls if call[3] and call[3].get("type") == "register_sensor"]
-            assert len(missing_sensors) == 8
-            assert all(sensor["state"] == "unavailable" for sensor in missing_sensors if sensor["name"] != "Sharing Mode")
+            assert len(missing_sensors) == 14
+            assert all(sensor["state"] == "unavailable" for sensor in missing_sensors if sensor["name"] not in {"Sharing Mode", "Location Health"})
         finally:
             locator.request_json = original_request
 
     config = CONFIG.read_text(encoding="utf-8")
     dockerfile = DOCKERFILE.read_text(encoding="utf-8")
-    assert 'version: "1.4.0"' in config and "ingress: true" in config and "ingress_port: 8099" in config
-    assert "ARG BUILD_VERSION=1.4.0" in dockerfile and "apk upgrade --no-cache" in dockerfile
+    assert 'version: "1.5.0"' in config and "ingress: true" in config and "ingress_port: 8099" in config
+    assert "ARG BUILD_VERSION=1.5.0" in dockerfile and "apk upgrade --no-cache" in dockerfile
     installation = ROOT_README.read_text(encoding="utf-8")
     for instruction in ("Install App", "Repositories", "Check for updates", "https://github.com/bptworld/PixoraLocator", "Before starting the Home Assistant App"):
         assert instruction in installation
