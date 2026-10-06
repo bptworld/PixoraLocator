@@ -7,6 +7,14 @@
 	"communityLink": "",
 	"releaseNotes": "No release notes.",
 	"apps" : [
+		{
+			"id": "eeb482db-0d61-4835-aaa7-5b486e384a5f",
+			"name": "Pixoara Locator Household Map App",
+			"namespace": "BPTWorld",
+			"location": "https://raw.githubusercontent.com/bptworld/Hubitat/master/PixoraLocator/hubitat/PixoraLocatorHouseholdMap.groovy",
+			"required": true,
+			"version": "1.0.0"
+		}
 	],
 	"drivers" : [
 		{
@@ -14,6 +22,14 @@
 			"name": "Pixoara Locator Driver",
 			"namespace": "BPTWorld",
 			"location": "https://raw.githubusercontent.com/bptworld/Hubitat/master/PixoraLocator/hubitat/PixoraLocator.groovy",
+			"required": true,
+			"version": "1.0.0"
+		},
+		{
+			"id": "a1610673-5f24-4622-b1e1-74f15a9d2753",
+			"name": "Pixoara Locator Household Map Driver",
+			"namespace": "BPTWorld",
+			"location": "https://raw.githubusercontent.com/bptworld/Hubitat/master/PixoraLocator/hubitat/PixoraLocatorHouseholdMapDevice.groovy",
 			"required": true,
 			"version": "1.0.0"
 		}
