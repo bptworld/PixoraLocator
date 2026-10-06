@@ -30,7 +30,10 @@ metadata {
 }
 
 preferences {
-    input name: "smallTileFields", type: "enum", title: "Smaller tile contents", multiple: true, options: [avatar: "Avatar", battery: "Battery", distance: "Distance from Home", speed: "Speed", power: "Charging status", movement: "Movement", since: "At Place since", report: "Latest report", accuracy: "GPS accuracy", sharing: "Sharing mode", unrestricted: "Battery unrestricted"], defaultValue: ["avatar", "battery", "distance", "speed"], description: "Name, Place and health stay visible. If selected stats exceed the tile limit, extra rows remain in locatorDetails."
+    input name: "smallTileLine1", type: "enum", title: "Smaller tile - Line 1", options: [none: "None", since: "At Place since", battery: "Battery", unrestricted: "Battery unrestricted", power: "Charging status", distance: "Distance from Home", accuracy: "GPS accuracy", report: "Latest report", movement: "Movement", sharing: "Sharing mode", speed: "Speed"], defaultValue: "battery"
+    input name: "smallTileLine2", type: "enum", title: "Smaller tile - Line 2", options: [none: "None", since: "At Place since", battery: "Battery", unrestricted: "Battery unrestricted", power: "Charging status", distance: "Distance from Home", accuracy: "GPS accuracy", report: "Latest report", movement: "Movement", sharing: "Sharing mode", speed: "Speed"], defaultValue: "distance"
+    input name: "smallTileLine3", type: "enum", title: "Smaller tile - Line 3", options: [none: "None", since: "At Place since", battery: "Battery", unrestricted: "Battery unrestricted", power: "Charging status", distance: "Distance from Home", accuracy: "GPS accuracy", report: "Latest report", movement: "Movement", sharing: "Sharing mode", speed: "Speed"], defaultValue: "speed"
+    input name: "smallTileAvatar", type: "bool", title: "Show avatar on smaller tile", defaultValue: true
     input name: "distanceUnits", type: "enum", title: "Distance and speed units", options: ["mi": "Miles / mph", "km": "Kilometers / km/h"], defaultValue: "mi"
     input name: "staleAfterMinutes", type: "number", title: "Mark delivery stale after this many minutes", defaultValue: 45, range: "15..1440"
 }
@@ -192,11 +195,11 @@ private void updateDashboardTiles() {
     photo += "</span>"
     String table = "<table style='width:100%;font:inherit;line-height:1.6;margin-top:12px'>"
     String accuracy = active && device.currentValue('accuracy') instanceof Number ? new BigDecimal(device.currentValue('accuracy').toString()).setScale(1, java.math.RoundingMode.HALF_UP).toString() : "Unknown"
-    List selected = settings.smallTileFields instanceof Collection ? settings.smallTileFields as List : settings.smallTileFields ? [settings.smallTileFields.toString()] : ["avatar", "battery", "distance", "speed"]
+    List selected = [settings.smallTileLine1 ?: 'battery', settings.smallTileLine2 ?: 'distance', settings.smallTileLine3 ?: 'speed']
     Map rows = [battery: ["Battery", battery + (charging == 'charging' ? ' + power' : '')], distance: ["From home", "${distance} ${units}"], speed: ["Speed", "${speed} ${units == 'km' ? 'km/h' : 'mph'}"], power: ["Power", charging], movement: ["Movement", movement], since: ["Since", since], report: ["Updated", report], accuracy: ["GPS", "${accuracy} m"], sharing: ["Sharing", tileText(device.currentValue('sharingMode'), 12)], unrestricted: ["Unrestricted", active ? tileText(device.currentValue('batteryUnrestricted'), 7) : "Unknown"]]
     List orderedRows = rows.values().sort { a, b -> a[0].toString().compareToIgnoreCase(b[0].toString()) }
-    List smallRows = rows.findAll { key, value -> selected.contains(key) }.values().sort { a, b -> a[0].toString().compareToIgnoreCase(b[0].toString()) }.collect { row -> "<tr><td>${row[0]}</td><td><b>${row[1]}</b></td></tr>" }
-    String smallPhoto = selected.contains("avatar") ? photo : ""
+    List smallRows = selected.findAll { rows.containsKey(it) }.collect { key -> rows[key] }.collect { row -> "<tr><td>${row[0]}</td><td><b>${row[1]}</b></td></tr>" }
+    String smallPhoto = settings.smallTileAvatar == false ? "" : photo
     String tile = start + smallPhoto + header + table + smallRows.join('') + "</table></div>"
     if (tile.getBytes("UTF-8").length > 1024) tile = start + smallPhoto + "<b>${name}</b><br>${place} &middot; ${health}" + table + smallRows.join('') + "</table></div>"
     // Preserve chosen stats ahead of the photo when an image link consumes the budget.
