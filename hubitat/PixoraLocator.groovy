@@ -276,12 +276,13 @@ private void updateDashboardMap(boolean active, String name, String place, Strin
     String mapTile = "<div class='pixora-locator pixora-map' style='background:#10213b;color:#f5f8ff;padding:10px;text-align:left;font:14px Arial'><div><b>${name}</b><br><span style='color:${health == 'current' ? '#66ddbc' : health in ['stale','off'] ? '#ff7788' : '#ffcc72'}'>${place} &middot; ${health}</span></div>"
     def latitude = device.currentValue('latitude')
     def longitude = device.currentValue('longitude')
+    String mapReport = "Updated ${reportAgeText()}" + (device.currentValue('sharingMode') == 'approximate' ? ' &middot; Approximate area center' : '')
     if (active && validCoordinate(latitude, 90) && validCoordinate(longitude, 180)) {
         double lat = Double.parseDouble(latitude.toString())
         double lon = Double.parseDouble(longitude.toString())
         if (state.mapSource) {
             String url = state.mapSource.toString().replace("&", "&amp;")
-            mapTile += "<iframe src='${url}' title='Shared avatar map' referrerpolicy='no-referrer' loading='lazy' style='width:100%;height:220px;border:0;border-radius:10px'></iframe><small>Last reported position</small></div>"
+            mapTile += "<iframe src='${url}' title='Shared avatar map' referrerpolicy='no-referrer' loading='lazy' style='width:100%;height:220px;border:0;border-radius:10px'></iframe><small>${mapReport}</small></div>"
             if (device.currentValue('locatorMap') != mapTile) sendEvent(name: 'locatorMap', value: mapTile)
             return
         }
@@ -293,7 +294,7 @@ private void updateDashboardMap(boolean active, String name, String place, Strin
             String bbox = [Math.max(-180d, lon - lonSpan), Math.max(-85.051128d, lat - span), Math.min(180d, lon + lonSpan), Math.min(85.051128d, lat + span)].collect { mapCoordinate(it as double) }.join(',')
             String marker = mapCoordinate(lat) + ',' + mapCoordinate(lon)
             String url = "https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&amp;layer=mapnik&amp;marker=${marker}"
-            mapTile += "<iframe src='${url}' title='Shared location map' referrerpolicy='no-referrer' loading='lazy' style='width:100%;height:220px;border:0;border-radius:10px;margin-top:8px'></iframe><small>${approximate ? 'Approximate area center' : 'Last reported position'}</small>"
+            mapTile += "<iframe src='${url}' title='Shared location map' referrerpolicy='no-referrer' loading='lazy' style='width:100%;height:220px;border:0;border-radius:10px;margin-top:8px'></iframe><small>${mapReport}</small>"
         } else {
             mapTile += '<p>Map unavailable near the poles.</p>'
         }
