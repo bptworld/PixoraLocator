@@ -23,6 +23,7 @@ metadata {
         attribute "batteryUnrestricted", "enum", ["yes", "no", "unknown"]
         attribute "locatorTile", "string"
         attribute "locatorDetails", "string"
+        attribute "locatorMap", "string"
 
         command "updateLocation", [[name: "Location payload", type: "STRING", description: "Pixora Locator JSON payload"]]
         command "clearLocation"
@@ -223,6 +224,37 @@ private void updateDashboardTiles() {
     }
     if (device.currentValue("locatorTile") != tile) sendEvent(name: "locatorTile", value: tile)
     if (device.currentValue("locatorDetails") != details) sendEvent(name: "locatorDetails", value: details)
+    updateDashboardMap(active, name, place, health)
+}
+
+private String mapCoordinate(double value) {
+    return String.format(java.util.Locale.US, "%.6f", value)
+}
+
+private void updateDashboardMap(boolean active, String name, String place, String health) {
+    String mapTile = "<div style='background:#10213b;color:#f5f8ff;border-radius:14px;padding:10px;text-align:left;font:14px Arial'><b>${name}</b><br>${place} &middot; ${health}"
+    def latitude = device.currentValue('latitude')
+    def longitude = device.currentValue('longitude')
+    if (active && validCoordinate(latitude, 90) && validCoordinate(longitude, 180)) {
+        double lat = Double.parseDouble(latitude.toString())
+        double lon = Double.parseDouble(longitude.toString())
+        // Web Mercator cannot display the poles; don't silently move the person's pin.
+        if (Math.abs(lat) <= 85.051128) {
+            boolean approximate = device.currentValue('sharingMode') == 'approximate'
+            double span = approximate ? 0.04d : 0.008d
+            double lonSpan = span * 1.6d / Math.max(0.1d, Math.cos(Math.toRadians(lat)))
+            String bbox = [Math.max(-180d, lon - lonSpan), Math.max(-85.051128d, lat - span), Math.min(180d, lon + lonSpan), Math.min(85.051128d, lat + span)].collect { mapCoordinate(it as double) }.join(',')
+            String marker = mapCoordinate(lat) + ',' + mapCoordinate(lon)
+            String url = "https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&amp;layer=mapnik&amp;marker=${marker}"
+            mapTile += "<iframe src='${url}' title='Shared location map' referrerpolicy='no-referrer' loading='lazy' style='width:100%;height:220px;border:0;border-radius:10px;margin-top:8px'></iframe><small>${approximate ? 'Approximate area center' : 'Last reported position'}</small>"
+        } else {
+            mapTile += '<p>Map unavailable near the poles.</p>'
+        }
+    } else {
+        mapTile += '<p>No shared location available.</p>'
+    }
+    mapTile += '</div>'
+    if (device.currentValue('locatorMap') != mapTile) sendEvent(name: 'locatorMap', value: mapTile)
 }
 
 private String readablePlaceTime(value) {

@@ -38,6 +38,9 @@ No separate Hubitat app is needed. Update this driver, open the virtual phone de
 2. Open that dashboard and add a tile. Select the phone device and the **Attribute** template.
 3. Choose **locatorTile** as the attribute. Start with a tile spanning two columns and three rows, then resize to fit your dashboard's fonts and grid.
 4. Optionally add another Attribute tile using **locatorDetails** for the additional GPS accuracy, sharing mode, and battery-optimization details.
+5. For each person, add an **Attribute** tile using **locatorMap**. It displays an interactive street map centered on that phone's latest shared position with a map pin. Start with a tile spanning three columns and three rows; the map itself is 220 pixels high.
+
+The map uses OpenStreetMap's embedded map and attribution. It requires internet access from the dashboard browser and sends the displayed coordinates/map area to OpenStreetMap. It uses existing location reports, not another GPS request, and shows no route history. Approximate sharing labels the pin as an approximate area center. Delayed/stale reports stay labeled; turning sharing off removes the map from the attribute. Existing dashboard tabs must receive the updated tile or reload to clear an already-loaded map. The person name, Place, and health appear above the map; it uses a standard map pin, not an avatar marker. Coordinates beyond Web Mercator's polar limit show an unavailable message.
 
 On each virtual phone device, use **Preferences → Smaller tile - Line 1 / Line 2 / Line 3** to choose each stat and its order, then select **Save Preferences**. Choose **None** to hide a line. Defaults are battery, distance from Home, and speed. A separate **Show avatar on smaller tile** switch controls the photo. Name, Place, and health remain visible. The larger `locatorDetails` card stays alphabetical and independent of these selections. If a card exceeds the size limit, it shortens content and indicates omitted rows.
 
