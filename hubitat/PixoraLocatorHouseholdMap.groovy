@@ -80,14 +80,14 @@ def membersEndpoint() {
 }
 def mapEndpoint() {
     if (!authorized()) return render(contentType: "text/plain", data: "Unauthorized", status: 403)
-    render(contentType: "text/html", data: mapHtml(), headers: ["Cache-Control": "no-store"], status: 200)
+    render(contentType: "text/html", data: mapHtml(), headers: ["Cache-Control": "no-store", "Referrer-Policy": "origin"], status: 200)
 }
 mappings {
     path("/map") { action: [GET: "mapEndpoint"] }
     path("/members") { action: [GET: "membersEndpoint"] }
 }
 private String mapHtml() {
-    return '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">
+    return '''<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="origin">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <style>html,body,#map{height:100%;margin:0}body{background:#10213b;font:14px Arial}#bar{position:absolute;top:10px;right:10px;z-index:1000;background:#10213b;color:white;border-radius:10px;padding:8px;max-width:65%}button{padding:6px;margin-left:6px}.pin{width:48px;height:48px;border:4px solid #66ddbc;border-radius:50%;background:#10213b;color:white;display:grid;place-items:center;font:bold 22px Arial;box-sizing:border-box;box-shadow:0 2px 8px #333}.pin img{width:100%;height:100%;border-radius:50%;object-fit:cover}.leaflet-tooltip{font:bold 13px Arial;background:#10213b;color:white;border-color:#66ddbc}.leaflet-container{background:#10213b}</style></head>
 <body><div id="map"></div><div id="bar"><span id="status">Loading locations...</span><button id="fit">Fit</button></div>
@@ -97,7 +97,8 @@ const status=document.getElementById('status');
 if(!window.L){status.textContent='Map library unavailable. Check internet access.';}
 else {
 const map=L.map('map').setView([20,0],2), pins=new Map();
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'}).addTo(map);
+// OSM requires a browser Referer; origin-only prevents leaking the private app token.
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,referrerPolicy:'origin',attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>'}).addTo(map);
 let fitted=false;
 function fit(){const points=Array.from(pins.values()).map(p=>p.reportedPosition||p.getLatLng());if(points.length)map.fitBounds(L.latLngBounds(points),{padding:[50,50],maxZoom:16});}
 function separatePins(){
