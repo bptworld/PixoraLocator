@@ -30,6 +30,7 @@ metadata {
 }
 
 preferences {
+    input name: "smallTileFields", type: "enum", title: "Smaller tile contents", multiple: true, options: [avatar: "Avatar", battery: "Battery", distance: "Distance from Home", speed: "Speed", power: "Charging status", movement: "Movement", since: "At Place since", report: "Latest report", accuracy: "GPS accuracy", sharing: "Sharing mode", unrestricted: "Battery unrestricted"], defaultValue: ["avatar", "battery", "distance", "speed"], description: "Name, Place and health stay visible. If selected stats exceed the tile limit, extra rows remain in locatorDetails."
     input name: "distanceUnits", type: "enum", title: "Distance and speed units", options: ["mi": "Miles / mph", "km": "Kilometers / km/h"], defaultValue: "mi"
     input name: "staleAfterMinutes", type: "number", title: "Mark delivery stale after this many minutes", defaultValue: 45, range: "15..1440"
 }
@@ -190,14 +191,33 @@ private void updateDashboardTiles() {
     }
     photo += "</span>"
     String table = "<table style='width:100%;font:inherit;line-height:1.6;margin-top:12px'>"
-    String core = "<tr><td>Battery</td><td><b>${battery}</b>${charging == 'charging' ? ' + power' : ''}</td></tr><tr><td>From home</td><td><b>${distance}</b> ${units}</td></tr><tr><td>Speed</td><td><b>${speed}</b> ${units == 'km' ? 'km/h' : 'mph'}</td></tr>"
-    String tile = start + photo + header + table + core + "</table></div>"
-    // Use a smaller header when unusually long signed links or labels need more room.
-    if (tile.getBytes("UTF-8").length > 1024) tile = start + photo + "<b>${name}</b><br>${place}" + table + core + "</table></div>"
-    if (tile.getBytes("UTF-8").length > 1024) tile = start + header + table + core + "</table></div>"
     String accuracy = active && device.currentValue('accuracy') instanceof Number ? new BigDecimal(device.currentValue('accuracy').toString()).setScale(1, java.math.RoundingMode.HALF_UP).toString() : "Unknown"
-    String details = start + header + table + core + "<tr><td>Power</td><td>${charging}</td></tr><tr><td>Movement</td><td>${movement}</td></tr><tr><td>Since</td><td>${since}</td></tr><tr><td>Updated</td><td>${report}</td></tr><tr><td>GPS</td><td>${accuracy} m</td></tr><tr><td>Sharing</td><td>${tileText(device.currentValue('sharingMode'), 12)}</td></tr><tr><td>Unrestricted</td><td>${active ? tileText(device.currentValue('batteryUnrestricted'), 7) : 'Unknown'}</td></tr></table></div>"
-    if (details.getBytes("UTF-8").length > 1024) details = start + "<b>${name}</b><br>${place}" + table + core + "<tr><td>Power</td><td>${charging}</td></tr><tr><td>Since</td><td>${since}</td></tr><tr><td>Updated</td><td>${report}</td></tr></table></div>"
+    List selected = settings.smallTileFields instanceof Collection ? settings.smallTileFields as List : settings.smallTileFields ? [settings.smallTileFields.toString()] : ["avatar", "battery", "distance", "speed"]
+    Map rows = [battery: ["Battery", battery + (charging == 'charging' ? ' + power' : '')], distance: ["From home", "${distance} ${units}"], speed: ["Speed", "${speed} ${units == 'km' ? 'km/h' : 'mph'}"], power: ["Power", charging], movement: ["Movement", movement], since: ["Since", since], report: ["Updated", report], accuracy: ["GPS", "${accuracy} m"], sharing: ["Sharing", tileText(device.currentValue('sharingMode'), 12)], unrestricted: ["Unrestricted", active ? tileText(device.currentValue('batteryUnrestricted'), 7) : "Unknown"]]
+    List orderedRows = rows.values().sort { a, b -> a[0].toString().compareToIgnoreCase(b[0].toString()) }
+    List smallRows = rows.findAll { key, value -> selected.contains(key) }.values().sort { a, b -> a[0].toString().compareToIgnoreCase(b[0].toString()) }.collect { row -> "<tr><td>${row[0]}</td><td><b>${row[1]}</b></td></tr>" }
+    String smallPhoto = selected.contains("avatar") ? photo : ""
+    String tile = start + smallPhoto + header + table + smallRows.join('') + "</table></div>"
+    if (tile.getBytes("UTF-8").length > 1024) tile = start + smallPhoto + "<b>${name}</b><br>${place} &middot; ${health}" + table + smallRows.join('') + "</table></div>"
+    // Preserve chosen stats ahead of the photo when an image link consumes the budget.
+    if (tile.getBytes("UTF-8").length > 1024) {
+        smallPhoto = ""
+        tile = start + header + table + smallRows.join('') + "</table></div>"
+    }
+    int omitted = 0
+    while (tile.getBytes("UTF-8").length > 1024 && smallRows) {
+        smallRows.remove(smallRows.size() - 1)
+        omitted++
+        tile = start + header + table + smallRows.join('') + "</table><small>+${omitted} in details</small></div>"
+    }
+    List detailRows = orderedRows.collect { row -> "<tr><td>${row[0]}</td><td>${row[1]}</td></tr>" }
+    String details = start + header + table + detailRows.join('') + "</table></div>"
+    int hiddenDetails = 0
+    while (details.getBytes("UTF-8").length > 1024 && detailRows) {
+        detailRows.remove(detailRows.size() - 1)
+        hiddenDetails++
+        details = start + header + table + detailRows.join('') + "</table><small>+${hiddenDetails} omitted: tile limit</small></div>"
+    }
     if (device.currentValue("locatorTile") != tile) sendEvent(name: "locatorTile", value: tile)
     if (device.currentValue("locatorDetails") != details) sendEvent(name: "locatorDetails", value: details)
 }
