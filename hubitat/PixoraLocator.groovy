@@ -186,7 +186,7 @@ private void updateDashboardTiles() {
     String report = active ? tileText(device.currentValue("lastLocationAt"), 24) : "Unknown"
     String movement = active ? tileText(device.currentValue("movement"), 16) : "Unknown"
     String tone = health == "current" ? "#66ddbc" : health == "off" ? "#aab8ce" : "#ffcc72"
-    String start = "<div style='background:#10213b;color:#f5f8ff;border-radius:14px;padding:12px;text-align:left;font:14px Arial'>"
+    String start = "<div class='pixora-locator' style='background:#10213b;color:#f5f8ff;padding:12px;text-align:left;font:14px Arial'>"
     String header = "<b style='font-size:22px'>${name}</b><br><span style='color:${tone}'>${place} &middot; ${health}</span>"
     // A background initial remains visible if the browser cannot load the private photo.
     String photo = "<span style='float:right;position:relative;background:#29496b;border-radius:50%;width:48px;height:48px;text-align:center;line-height:48px'>${tileText((state.memberName ?: device.displayName ?: 'L').toString().take(1), 1)}"
@@ -232,7 +232,7 @@ private String mapCoordinate(double value) {
 }
 
 private void updateDashboardMap(boolean active, String name, String place, String health) {
-    String mapTile = "<div style='background:#10213b;color:#f5f8ff;border-radius:14px;padding:10px;text-align:left;font:14px Arial'><b>${name}</b><br>${place} &middot; ${health}"
+    String mapTile = "<div class='pixora-locator pixora-map' style='background:#10213b;color:#f5f8ff;padding:10px;text-align:left;font:14px Arial'><div><b>${name}</b><br>${place} &middot; ${health}</div>"
     def latitude = device.currentValue('latitude')
     def longitude = device.currentValue('longitude')
     if (active && validCoordinate(latitude, 90) && validCoordinate(longitude, 180)) {

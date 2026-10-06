@@ -38,7 +38,11 @@ No separate Hubitat app is needed. Update this driver, open the virtual phone de
 2. Open that dashboard and add a tile. Select the phone device and the **Attribute** template.
 3. Choose **locatorTile** as the attribute. Start with a tile spanning two columns and three rows, then resize to fit your dashboard's fonts and grid.
 4. Optionally add another Attribute tile using **locatorDetails** for the additional GPS accuracy, sharing mode, and battery-optimization details.
-5. For each person, add an **Attribute** tile using **locatorMap**. It displays an interactive street map centered on that phone's latest shared position with a map pin. Start with a tile spanning three columns and three rows; the map itself is 220 pixels high.
+5. For each person, add an **Attribute** tile using **locatorMap**. It displays an interactive street map centered on that phone's latest shared position with a map pin. Start with a tile spanning three columns and three rows.
+
+### Full-tile backgrounds and resizing
+
+After updating the driver, select **Save Preferences** or **Refresh** on each phone device. Copy [dashboard.css](dashboard.css) into the classic Dashboard's **Settings → Advanced → CSS**, appending it to any existing CSS. This one-time, Pixora-only rule removes Dashboard padding and the duplicate device label, and makes each card background cover the whole tile. It needs no tile IDs and continues to work when tiles are resized. Stats scroll inside smaller tiles; the map expands or contracts with the remaining space below its header. Other tiles and the Hubitat device-details page are unchanged. Use a current browser that supports CSS `:has()`.
 
 The map uses OpenStreetMap's embedded map and attribution. It requires internet access from the dashboard browser and sends the displayed coordinates/map area to OpenStreetMap. It uses existing location reports, not another GPS request, and shows no route history. Approximate sharing labels the pin as an approximate area center. Delayed/stale reports stay labeled; turning sharing off removes the map from the attribute. Existing dashboard tabs must receive the updated tile or reload to clear an already-loaded map. The person name, Place, and health appear above the map; it uses a standard map pin, not an avatar marker. Coordinates beyond Web Mercator's polar limit show an unavailable message.
 

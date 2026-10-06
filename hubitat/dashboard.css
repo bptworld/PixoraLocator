@@ -1,0 +1,47 @@
+/* Paste once into classic Dashboard Settings > Advanced > CSS.
+   Only tiles containing a Pixora card are affected; no tile IDs are needed. */
+.tile:has(.pixora-locator) {
+  position: relative !important;
+  background: #10213b !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+.tile:has(.pixora-locator) .tile-title {
+  display: none !important;
+}
+.tile:has(.pixora-locator) .tile-primary {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  display: block !important;
+}
+.tile .pixora-locator {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  overflow: auto;
+  border-radius: inherit;
+}
+.tile .pixora-locator td {
+  overflow-wrap: anywhere;
+}
+.tile .pixora-map {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tile .pixora-map > div,
+.tile .pixora-map > small {
+  flex: 0 0 auto;
+}
+.tile .pixora-map > iframe {
+  flex: 1 1 0;
+  height: auto !important;
+  min-height: 0;
+  margin-top: 0 !important;
+  display: block;
+}
