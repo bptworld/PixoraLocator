@@ -175,7 +175,11 @@ private String tileText(value, int maximum = 32) {
 private void updateDashboardTiles() {
     boolean active = device.currentValue("sharingMode") != "off" && device.currentValue("deliveryStatus") != "disabled"
     String name = tileText(state.memberName ?: device.displayName ?: "Locator", 24)
-    String place = active ? tileText(device.currentValue("place"), 32) : "Sharing off"
+    String place = "Sharing off"
+    if (active) {
+        String rawPlace = (device.currentValue('place') ?: '').toString()
+        place = rawPlace in ['', 'not_home', 'unavailable', 'unknown'] ? (device.currentValue('movement') == 'moving' ? 'On the Move' : 'Unknown Place') : tileText(rawPlace, 32)
+    }
     String health = tileText(device.currentValue("locationHealth"), 12)
     String battery = active && device.currentValue("battery") instanceof Number ? device.currentValue("battery").toString() + "%" : "Unknown"
     String charging = active ? tileText(device.currentValue("charging"), 12) : "Unknown"
