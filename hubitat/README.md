@@ -2,7 +2,7 @@
 
 ## Household map device: all selected users together
 
-This is a separate virtual device, created by the companion app; your existing phone tiles stay unchanged.
+This is a separate virtual device, created by the companion app. Updated phone drivers also use this app for individual avatar-pin maps.
 
 1. Update each phone's **Pixora Locator** driver, then select **Save Preferences** or **Refresh**.
 2. In **Drivers Code**, add [PixoraLocatorHouseholdMapDevice.groovy](PixoraLocatorHouseholdMapDevice.groovy).
@@ -11,7 +11,9 @@ This is a separate virtual device, created by the companion app; your existing p
 5. The app creates **Pixora Household Map** (or your chosen name). Allow this new device in the classic Dashboard app.
 6. Add an **Attribute** tile for the new device and choose **locatorMap**. Start with three columns by three rows. The existing [dashboard.css](dashboard.css) makes it fill the tile and follow resizing.
 
-The map shows all selected sharing phones, their Planner avatars or initials, and name/Place labels. **Fit** frames everyone; dragging and zooming are preserved across updates. Nearly coincident pins are spread for visibility only; their stored locations remain unchanged. Clicking a pin shows health and the last report time. Approximate positions are labeled, delayed/stale pins use amber borders, and sharing-off devices are removed on the next map refresh (up to 15 seconds). Network failure keeps the last loaded pins with an explicit warning; it cannot clear them until connectivity returns.
+The map shows all selected sharing phones, their Planner avatars or initials, and name/Place labels. **Fit** frames everyone; dragging and zooming are preserved across updates. Nearly coincident pins are spread for visibility only; their stored locations remain unchanged. Clicking a pin shows health, report age, and the exact report time. Approximate positions are labeled; delayed pins use amber borders and stale pins use red borders and labels. Sharing-off devices are removed on the next map refresh (up to 15 seconds). Network failure keeps the last loaded pins with an explicit amber warning; it cannot clear them until connectivity returns.
+
+After updating both the phone driver and this app, open the installed **Pixora Locator Household Map** app and choose **Done**. It automatically links each selected phone's existing **locatorMap** tile to the same map renderer, filtered to that phone. The original individual OpenStreetMap embed remains a fallback without the companion app. No additional device or phone build is needed.
 
 The map polls only the selected devices' current Hubitat attributes every 15 seconds while visible. It requests no GPS, stores no location history, and adds no Render/database polling. OpenStreetMap receives the displayed map area; pinned Leaflet assets load from unpkg with integrity checks. Internet access and Hubitat cloud access are required. Keep dashboard URLs and device event history private: the map URL contains an app access token authorizing access to these selected devices' latest locations. Removing a phone from app selection excludes it immediately from subsequent responses; uninstalling the app revokes its token. No phone rebuild is needed.
 
@@ -46,6 +48,8 @@ The separate `PixoraLocatorOwnTracksImporter.groovy` Hubitat app can turn region
 The receiver works only for ten minutes after being armed and disarms after one successful list. It rejects live location messages and stores no member location, history, alerts, credentials, or phone details. Captured Place definitions expire from Hubitat automatically after one hour. Synthetic `+follow` regions and Places pending deletion are excluded. New Locator Places begin without history or alerts; an existing matching Place keeps its existing activity and settings.
 
 ## Classic Dashboard avatar tile
+
+Dashboard polish: replace the Pixora rules in **Settings → Advanced → CSS** with the latest [dashboard.css](dashboard.css), preserving unrelated CSS. Small tiles use tighter spacing, whole-word labels, and hidden scrollbars (scrolling still works when needed). **Updated** shows report age, refreshed every minute; hover over its value in the large tile for the exact timestamp. **Accuracy** and **Battery unrestricted** are spelled out and sorted alphabetically. Low GPS speed below 1 m/s displays as zero only when the phone reports stationary; the numeric speed attribute remains unchanged for automations. Stale/off states are red, delayed/unknown states amber, and current states mint. Avatars are omitted before stats if the 1,024-byte limit would be exceeded.
 
 No separate Hubitat app is needed. Update this driver, open the virtual phone device, and select **Save Preferences** (or **Refresh**). New location reports supply the member's Planner avatar automatically; if no Planner photo exists, the Locator avatar or initial is used.
 

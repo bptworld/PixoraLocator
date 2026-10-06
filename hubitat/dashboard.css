@@ -26,8 +26,30 @@
   overflow: auto;
   border-radius: inherit;
 }
+.tile .pixora-locator table {
+  line-height: 1.6;
+  margin-top: 12px;
+}
 .tile .pixora-locator td {
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
+  vertical-align: top;
+}
+.tile .pixora-small {
+  padding: 8px !important;
+  font-size: 13px !important;
+  scrollbar-width: none;
+}
+.tile .pixora-small::-webkit-scrollbar {
+  display: none;
+}
+.tile .pixora-small table {
+  margin-top: 8px !important;
+  line-height: 1.35 !important;
+}
+.tile .pixora-small td:first-child {
+  padding-right: 6px;
+  white-space: nowrap;
 }
 .tile .pixora-map {
   display: flex;

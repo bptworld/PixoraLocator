@@ -29,6 +29,8 @@ metadata {
 
         command "updateLocation", [[name: "Location payload", type: "STRING", description: "Pixora Locator JSON payload"]]
         command "clearLocation"
+        command "setLocatorMapSource", [[name: "Private map URL", type: "STRING"]]
+        attribute "locatorReportedAt", "number"
     }
 }
 
@@ -82,9 +84,11 @@ def updateLocation(String payload) {
     String capturedAt = (locationData.capturedAt ?: new Date().format("yyyy-MM-dd'T'HH:mm:ssXXX", TimeZone.getTimeZone("UTC"))).toString()
     String displayedAt = capturedAt
     long reportAge = 0L
+    state.reportedAt = null
     try {
         long capturedMillis = java.time.OffsetDateTime.parse(capturedAt).toInstant().toEpochMilli()
         reportAge = Math.max(0L, now() - capturedMillis)
+        state.reportedAt = Math.min(now(), capturedMillis)
         TimeZone hubTimeZone = location?.timeZone ?: TimeZone.getDefault()
         displayedAt = new Date(capturedMillis).format("M-d-yyyy h:mm a", hubTimeZone).toLowerCase()
     } catch (Exception ignored) {
@@ -112,6 +116,7 @@ def updateLocation(String payload) {
     sendEvent(name: "accuracy", value: accuracy, unit: "m")
     sendEvent(name: "place", value: (locationData.place ?: "not_home").toString())
     sendEvent(name: "lastLocationAt", value: displayedAt)
+    sendEvent(name: "locatorReportedAt", value: state.reportedAt ?: 0L)
     sendEvent(name: "presence", value: locationData.presence == "present" ? "present" : "not present")
     if (locationData.battery instanceof Number) {
         int battery = (locationData.battery as Number).intValue()
@@ -157,6 +162,8 @@ def clearLocation() {
     sendEvent(name: "presence", value: "not present")
     sendEvent(name: "deliveryStatus", value: "disabled")
     state.remove("lastDelivery")
+    state.remove("reportedAt")
+    sendEvent(name: "locatorReportedAt", value: 0L)
     state.remove("healthAgeOffset")
     state.remove("oneTimeReport")
     state.remove("avatarUrl")
@@ -191,10 +198,12 @@ private void updateDashboardTiles() {
     String units = settings.distanceUnits == "km" ? "km" : "mi"
     String distance = active ? tileText(device.currentValue("distanceFromHome"), 8) : "Unknown"
     String speed = active ? tileText(device.currentValue("speed"), 8) : "Unknown"
+    // Display-only jitter suppression; never change the reported speed attribute.
+    if (active && device.currentValue("movement") == "stationary" && validSpeed(state.speedMetersPerSecond) && state.speedMetersPerSecond < 1d) speed = "0"
     String since = active ? tileText(device.currentValue("atPlaceSince"), 28) : "Unknown"
-    String report = active ? tileText(device.currentValue("lastLocationAt"), 24) : "Unknown"
+    String report = active ? reportAgeText() : "Unknown"
     String movement = active ? tileText(device.currentValue("movement"), 16) : "Unknown"
-    String tone = health == "current" ? "#66ddbc" : health == "off" ? "#aab8ce" : "#ffcc72"
+    String tone = health == "current" ? "#66ddbc" : health in ["stale", "off"] ? "#ff7788" : "#ffcc72"
     String start = "<div class='pixora-locator' style='background:#10213b;color:#f5f8ff;padding:12px;text-align:left;font:14px Arial'>"
     String header = "<b style='font-size:22px'>${name}</b><br><span style='color:${tone}'>${place} &middot; ${health}</span>"
     // A background initial remains visible if the browser cannot load the private photo.
@@ -206,42 +215,57 @@ private void updateDashboardTiles() {
     String table = "<table style='width:100%;font:inherit;line-height:1.6;margin-top:12px'>"
     String accuracy = active && device.currentValue('accuracy') instanceof Number ? new BigDecimal(device.currentValue('accuracy').toString()).setScale(1, java.math.RoundingMode.HALF_UP).toString() : "Unknown"
     List selected = [settings.smallTileLine1 ?: 'battery', settings.smallTileLine2 ?: 'distance', settings.smallTileLine3 ?: 'speed']
-    Map rows = [battery: ["Battery", battery + (charging == 'charging' ? ' + power' : '')], distance: ["From home", "${distance} ${units}"], speed: ["Speed", "${speed} ${units == 'km' ? 'km/h' : 'mph'}"], power: ["Power", charging], movement: ["Movement", movement], since: ["Since", since], report: ["Updated", report], accuracy: ["GPS", "${accuracy} m"], sharing: ["Sharing", tileText(device.currentValue('sharingMode'), 12)], unrestricted: ["Unrestricted", active ? tileText(device.currentValue('batteryUnrestricted'), 7) : "Unknown"]]
+    Map rows = [battery: ["Battery", battery + (charging == 'charging' ? ' + power' : '')], distance: ["From home", "${distance} ${units}"], speed: ["Speed", "${speed} ${units == 'km' ? 'km/h' : 'mph'}"], power: ["Power", charging], movement: ["Movement", movement], since: ["Since", since], report: ["Updated", report], accuracy: ["Accuracy", "${accuracy} m"], sharing: ["Sharing", tileText(device.currentValue('sharingMode'), 12)], unrestricted: ["Battery unrestricted", active ? tileText(device.currentValue('batteryUnrestricted'), 7) : "Unknown"]]
     List orderedRows = rows.values().sort { a, b -> a[0].toString().compareToIgnoreCase(b[0].toString()) }
-    List smallRows = selected.findAll { rows.containsKey(it) }.collect { key -> rows[key] }.collect { row -> "<tr><td>${row[0]}</td><td><b>${row[1]}</b></td></tr>" }
+    List smallRows = selected.findAll { rows.containsKey(it) }.collect { key -> rows[key] }.collect { row -> "<tr><td>${row[0] == 'Battery unrestricted' ? 'Unrestricted' : row[0]}<td><b>${row[1]}</b>" }
     String smallPhoto = settings.smallTileAvatar == false ? "" : photo
-    String tile = start + smallPhoto + header + table + smallRows.join('') + "</table></div>"
-    if (tile.getBytes("UTF-8").length > 1024) tile = start + smallPhoto + "<b>${name}</b><br>${place} &middot; ${health}" + table + smallRows.join('') + "</table></div>"
+    String smallStart = start.replace("pixora-locator", "pixora-locator pixora-small")
+    String tile = smallStart + smallPhoto + header + table + smallRows.join('') + "</table></div>"
+    if (tile.getBytes("UTF-8").length > 1024) tile = smallStart + smallPhoto + "<b>${name}</b><br><span style='color:${tone}'>${place} &middot; ${health}</span>" + table + smallRows.join('') + "</table></div>"
     // Preserve chosen stats ahead of the photo when an image link consumes the budget.
     if (tile.getBytes("UTF-8").length > 1024) {
         smallPhoto = ""
-        tile = start + header + table + smallRows.join('') + "</table></div>"
+        tile = smallStart + header + table + smallRows.join('') + "</table></div>"
     }
     int omitted = 0
     while (tile.getBytes("UTF-8").length > 1024 && smallRows) {
         smallRows.remove(smallRows.size() - 1)
         omitted++
-        tile = start + header + table + smallRows.join('') + "</table><small>+${omitted} in details</small></div>"
+        tile = smallStart + header + table + smallRows.join('') + "</table><small>+${omitted} in details</small></div>"
     }
     // HTML permits omitted cell/row end tags; keep room for the private avatar.
-    List detailRows = orderedRows.collect { row -> "<tr><td>${row[0]}<td>${row[1]}" }
+    List detailRows = orderedRows.collect { row -> row[0] == "Updated" ? "<tr><td>Updated<td title='${tileText(device.currentValue('lastLocationAt'), 40)}'>${row[1]}" : "<tr><td>${row[0]}<td>${row[1]}" }
     String detailPhoto = currentAvatar ? "<img src='${currentAvatar}' width='48' height='48' alt='' style='float:right;border-radius:50%'>" : ""
     String detailHeader = "<b>${name}</b><br><span style='color:${tone}'>${place} &middot; ${health}</span>"
-    String details = start + detailPhoto + detailHeader + table + detailRows.join('') + "</table></div>"
+    String detailTable = "<table style='width:100%;font:inherit'>"
+    String details = start + detailPhoto + detailHeader + detailTable + detailRows.join('') + "</table></div>"
     // Keep all stats ahead of an unusually long image ticket.
     if (details.getBytes("UTF-8").length > 1024) {
         detailPhoto = ""
-        details = start + detailHeader + table + detailRows.join('') + "</table></div>"
+        details = start + detailHeader + detailTable + detailRows.join('') + "</table></div>"
     }
     int hiddenDetails = 0
     while (details.getBytes("UTF-8").length > 1024 && detailRows) {
         detailRows.remove(detailRows.size() - 1)
         hiddenDetails++
-        details = start + detailPhoto + detailHeader + table + detailRows.join('') + "</table><small>+${hiddenDetails} omitted: tile limit</small></div>"
+        details = start + detailPhoto + detailHeader + detailTable + detailRows.join('') + "</table><small>+${hiddenDetails} omitted: tile limit</small></div>"
     }
     if (device.currentValue("locatorTile") != tile) sendEvent(name: "locatorTile", value: tile)
     if (device.currentValue("locatorDetails") != details) sendEvent(name: "locatorDetails", value: details)
     updateDashboardMap(active, name, place, health)
+}
+
+def setLocatorMapSource(String url) {
+    String safe = url ==~ /^https:\/\/cloud\.hubitat\.com\/api\/[A-Za-z0-9\/_-]+\/map\?access_token=[A-Za-z0-9_-]{16,128}&device=[0-9]+$/ ? url : ""
+    if ((state.mapSource ?: "") == safe) return
+    state.mapSource = safe
+    updateDashboardTiles()
+}
+
+private String reportAgeText() {
+    if (!state.reportedAt) return "Unknown"
+    long seconds = Math.max(0L, now() - (state.reportedAt as Long)) / 1000L
+    return seconds < 60 ? "${seconds} sec ago" : seconds < 3600 ? "${seconds.intdiv(60)} min ago" : seconds < 86400 ? "${seconds.intdiv(3600)} hr ago" : "${seconds.intdiv(86400)} days ago"
 }
 
 private String mapCoordinate(double value) {
@@ -249,12 +273,18 @@ private String mapCoordinate(double value) {
 }
 
 private void updateDashboardMap(boolean active, String name, String place, String health) {
-    String mapTile = "<div class='pixora-locator pixora-map' style='background:#10213b;color:#f5f8ff;padding:10px;text-align:left;font:14px Arial'><div><b>${name}</b><br>${place} &middot; ${health}</div>"
+    String mapTile = "<div class='pixora-locator pixora-map' style='background:#10213b;color:#f5f8ff;padding:10px;text-align:left;font:14px Arial'><div><b>${name}</b><br><span style='color:${health == 'current' ? '#66ddbc' : health in ['stale','off'] ? '#ff7788' : '#ffcc72'}'>${place} &middot; ${health}</span></div>"
     def latitude = device.currentValue('latitude')
     def longitude = device.currentValue('longitude')
     if (active && validCoordinate(latitude, 90) && validCoordinate(longitude, 180)) {
         double lat = Double.parseDouble(latitude.toString())
         double lon = Double.parseDouble(longitude.toString())
+        if (state.mapSource) {
+            String url = state.mapSource.toString().replace("&", "&amp;")
+            mapTile += "<iframe src='${url}' title='Shared avatar map' referrerpolicy='no-referrer' loading='lazy' style='width:100%;height:220px;border:0;border-radius:10px'></iframe><small>Last reported position</small></div>"
+            if (device.currentValue('locatorMap') != mapTile) sendEvent(name: 'locatorMap', value: mapTile)
+            return
+        }
         // Web Mercator cannot display the poles; don't silently move the person's pin.
         if (Math.abs(lat) <= 85.051128) {
             boolean approximate = device.currentValue('sharingMode') == 'approximate'

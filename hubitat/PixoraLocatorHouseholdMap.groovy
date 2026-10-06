@@ -40,11 +40,16 @@ def refreshMap() {
     def child = getChildDevice(childId())
     if (!child) return
     if (!state.accessToken) { child.clearMap(); return }
-    child.setMap("${getFullApiServerUrl()}/map?access_token=${state.accessToken}", visibleMembers().size())
+    String url = "${getFullApiServerUrl()}/map?access_token=${state.accessToken}"
+    child.setMap(url, visibleMembers().size())
+    (settings.phones ?: []).each { phone ->
+        if (phone.hasCommand("setLocatorMapSource")) phone.setLocatorMapSource("${url}&device=${phone.id}")
+    }
 }
 def uninstalled() {
     unsubscribe()
     unschedule()
+    (settings.phones ?: []).each { phone -> if (phone.hasCommand("setLocatorMapSource")) phone.setLocatorMapSource("") }
     try { revokeAccessToken() } catch (Exception ignored) {}
     getChildDevices().each { deleteChildDevice(it.deviceNetworkId) }
 }
@@ -70,13 +75,14 @@ private List visibleMembers() {
             latitude: Double.parseDouble(lat.toString()), longitude: Double.parseDouble(lon.toString()),
             place: place.take(80), health: (phone.currentValue("locationHealth") ?: "unknown").toString().take(16),
             approximate: phone.currentValue("sharingMode") == "approximate", avatar: photo,
+            reportedAt: phone.currentValue("locatorReportedAt") instanceof Number ? phone.currentValue("locatorReportedAt") : 0,
             updated: (phone.currentValue("lastLocationAt") ?: "Unknown").toString().take(40)]
     }
     return members
 }
 def membersEndpoint() {
     if (!authorized()) return render(contentType: "application/json", data: '{"error":"unauthorized"}', status: 403)
-    render(contentType: "application/json", data: JsonOutput.toJson([members: visibleMembers()]), headers: ["Cache-Control": "no-store"], status: 200)
+    render(contentType: "application/json", data: JsonOutput.toJson([members: visibleMembers().findAll { !params.device || it.id == params.device.toString() }]), headers: ["Cache-Control": "no-store"], status: 200)
 }
 def mapEndpoint() {
     if (!authorized()) return render(contentType: "text/plain", data: "Unauthorized", status: 403)
@@ -108,9 +114,13 @@ function separatePins(){
 map.on('zoomend',separatePins);
 document.getElementById('fit').onclick=fit;
 function icon(person,index){
- const node=document.createElement('div');node.className='pin';node.style.borderColor=person.health==='current'?'#66ddbc':'#ffcc72';node.textContent=person.name.charAt(0).toUpperCase();
+ const node=document.createElement('div');node.className='pin';node.style.borderColor=person.health==='current'?'#66ddbc':person.health==='stale'||person.health==='off'?'#ff7788':'#ffcc72';node.textContent=person.name.charAt(0).toUpperCase();
  if(person.avatar.startsWith('https://planner.pixorahq.com/api/locator/tile-avatar?t=')){const img=document.createElement('img');img.src=person.avatar;img.referrerPolicy='no-referrer';img.alt='';img.onerror=()=>{img.remove();node.textContent=person.name.charAt(0).toUpperCase();};node.textContent='';node.append(img);}
  const wrapper=document.createElement('div');wrapper.append(node);return L.divIcon({html:wrapper,iconSize:[48,48],iconAnchor:[24,24],className:''});
+}
+function ageText(timestamp){
+ const seconds=Math.max(0,Math.floor((Date.now()-Number(timestamp))/1000));
+ return !Number(timestamp)?'Unknown':seconds<60?seconds+' sec ago':seconds<3600?Math.floor(seconds/60)+' min ago':seconds<86400?Math.floor(seconds/3600)+' hr ago':Math.floor(seconds/86400)+' days ago';
 }
 async function refresh(){
  try {
@@ -123,14 +133,15 @@ async function refresh(){
  if(!pin){pin=L.marker(position).addTo(map);pins.set(person.id,pin);}else pin.setLatLng(position);
  pin.reportedPosition=position;
  pin.setIcon(icon(person,index));
- const label=document.createElement('span');label.textContent=person.name+' - '+person.place+(person.approximate?' (approximate)':'');
+ const label=document.createElement('span');label.textContent=person.name+' - '+person.place+(person.approximate?' (approximate)':'')+(person.health!=='current'?' - '+person.health:'');
+ label.style.borderColor=person.health==='current'?'#66ddbc':person.health==='stale'||person.health==='off'?'#ff7788':'#ffcc72';
  pin.unbindTooltip();pin.bindTooltip(label,{permanent:true,direction:'bottom',offset:[0,20]});
- const popup=document.createElement('div');popup.textContent=person.name+' | '+person.place+' | '+person.health+' | Updated '+person.updated;pin.unbindPopup();pin.bindPopup(popup);
+ const popup=document.createElement('div');popup.textContent=person.name+' | '+person.place+' | '+person.health+' | Updated '+ageText(person.reportedAt)+' | '+person.updated;pin.unbindPopup();pin.bindPopup(popup);
  });
  pins.forEach((pin,id)=>{if(!seen.has(id)){map.removeLayer(pin);pins.delete(id);}});
- status.textContent=pins.size?pins.size+' shared locations':'No shared locations';
+ status.textContent=pins.size?pins.size+' shared location'+(pins.size===1?'':'s'):'No shared locations';status.style.color='white';
  if(!fitted&&pins.size){fit();fitted=true;}if(!pins.size)fitted=false;separatePins();
- }catch(error){status.textContent='Updates unavailable - pins show last loaded positions';}
+ }catch(error){status.textContent='Updates unavailable - pins show last loaded positions';status.style.color='#ffcc72';}
  setTimeout(refresh,15000);
 }
 new ResizeObserver(()=>map.invalidateSize()).observe(document.getElementById('map'));refresh();
