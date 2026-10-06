@@ -1,0 +1,21 @@
+{
+	"packageName": "Pixora Locator App and Driver",
+	"minimumHEVersion": "2.2.0",
+	"author": "BPTWorld",
+	"dateReleased": "2026-10-06",
+	"documentationLink": "https://github.com/bptworld/PixoraLocator",
+	"communityLink": "",
+	"releaseNotes": "No release notes.",
+	"apps" : [
+	],
+	"drivers" : [
+		{
+			"id": "8628f9f3-d96b-4b87-85ee-6d318cc93192",
+			"name": "Pixoara Locator Driver",
+			"namespace": "BPTWorld",
+			"location": "https://raw.githubusercontent.com/bptworld/Hubitat/master/PixoraLocator/hubitat/PixoraLocator.groovy",
+			"required": true,
+			"version": "1.0.0"
+		}
+	]
+}
