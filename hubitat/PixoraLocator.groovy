@@ -21,6 +21,8 @@ metadata {
         attribute "atPlaceSince", "string"
         attribute "sharingMode", "string"
         attribute "batteryUnrestricted", "enum", ["yes", "no", "unknown"]
+        attribute "locatorTile", "string"
+        attribute "locatorDetails", "string"
 
         command "updateLocation", [[name: "Location payload", type: "STRING", description: "Pixora Locator JSON payload"]]
         command "clearLocation"
@@ -55,6 +57,7 @@ def initialize() {
     }
     unschedule()
     runEvery1Minute("refresh")
+    updateDashboardTiles()
 }
 
 def updateLocation(String payload) {
@@ -81,6 +84,10 @@ def updateLocation(String payload) {
         // Keep the original timestamp if an older sender provides an unexpected format.
     }
     sendEvent(name: "latitude", value: locationData.latitude.toString())
+    state.memberName = (locationData.member ?: device.displayName ?: "Locator").toString().take(40)
+    String avatarUrl = (locationData.avatarUrl ?: "").toString()
+    state.avatarUrl = avatarUrl ==~ /^https:\/\/planner\.pixorahq\.com\/api\/locator\/tile-avatar\?t=[A-Za-z0-9_.-]{1,650}$/ ? avatarUrl : ""
+    state.avatarDeadline = state.avatarUrl ? now() + 23 * 60 * 60_000L : 0L
     sendEvent(name: "longitude", value: locationData.longitude.toString())
     updateDistanceFromHome(locationData.latitude, locationData.longitude)
     state.speedMetersPerSecond = validSpeed(locationData.speed) ? locationData.speed : null
@@ -122,6 +129,7 @@ def refresh() {
     if (state.lastDelivery && now() - (state.lastDelivery as Long) > maximumAge) {
         sendEvent(name: "deliveryStatus", value: "stale")
     }
+    updateDashboardTiles()
 }
 
 def clearLocation() {
@@ -144,6 +152,46 @@ def clearLocation() {
     state.remove("lastDelivery")
     state.remove("healthAgeOffset")
     state.remove("oneTimeReport")
+    state.remove("avatarUrl")
+    state.remove("avatarDeadline")
+    updateDashboardTiles()
+}
+
+private String tileText(value, int maximum = 32) {
+    String text = (value == null || value.toString() == "" ? "Unknown" : value.toString()).take(maximum)
+    String escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;")
+    while (escaped.getBytes("UTF-8").length > 96) {
+        text = text.take(text.length() - 1)
+        escaped = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;")
+    }
+    return escaped
+}
+
+private void updateDashboardTiles() {
+    boolean active = device.currentValue("sharingMode") != "off" && device.currentValue("deliveryStatus") != "disabled"
+    String name = tileText(state.memberName ?: device.displayName ?: "Locator", 24)
+    String place = active ? tileText(device.currentValue("place"), 32) : "Sharing off"
+    String health = tileText(device.currentValue("locationHealth"), 12)
+    String battery = active && device.currentValue("battery") instanceof Number ? device.currentValue("battery").toString() + "%" : "Unknown"
+    String charging = active ? tileText(device.currentValue("charging"), 12) : "Unknown"
+    String units = settings.distanceUnits == "km" ? "km" : "mi"
+    String distance = active ? tileText(device.currentValue("distanceFromHome"), 8) : "Unknown"
+    String speed = active ? tileText(device.currentValue("speed"), 8) : "Unknown"
+    String since = active ? tileText(device.currentValue("atPlaceSince"), 28) : "Unknown"
+    String report = active ? tileText(device.currentValue("lastLocationAt"), 24) : "Unknown"
+    String movement = active ? tileText(device.currentValue("movement"), 16) : "Unknown"
+    String header = "<b>${name}</b><br><b>${place}</b><br>${health}<br style='clear:both'>"
+    String stats = "Battery: ${battery} - ${charging}<br>Home: ${distance} ${units}<br>Speed: ${speed} ${units == 'km' ? 'km/h' : 'mph'}<br>Movement: ${movement}<br>Since: ${since}<br>Report: ${report}"
+    String photo = active && state.avatarUrl && now() < ((state.avatarDeadline ?: 0L) as Long) ? "<img src='${state.avatarUrl}' width='56' height='56' alt='Avatar' referrerpolicy='no-referrer' style='float:left;border-radius:50%;margin-right:8px'>" : "<span style='float:left;font-size:32px;margin-right:8px'>${tileText((state.memberName ?: device.displayName ?: 'L').toString().take(1), 1)}</span>"
+    String start = "<div style='background:#10213b;color:#fff;padding:8px;font:14px Arial;line-height:1.4'>"
+    String tile = start + photo + header + stats + "</div>"
+    // Classic Dashboard drops oversized attribute values; retain the avatar and core stats.
+    if (tile.getBytes("UTF-8").length > 1024) tile = start + photo + header + "Battery: ${battery}<br>Home: ${distance} ${units}<br>Speed: ${speed}<br>Since: ${since}</div>"
+    if (tile.getBytes("UTF-8").length > 1024) tile = start + header + stats + "</div>"
+    String details = start + header + stats + "<br>GPS: ${active ? tileText(device.currentValue('accuracy'), 8) : 'Unknown'} m<br>Sharing: ${tileText(device.currentValue('sharingMode'), 12)}<br>Battery unrestricted: ${active ? tileText(device.currentValue('batteryUnrestricted'), 7) : 'Unknown'}</div>"
+    if (details.getBytes("UTF-8").length > 1024) details = start + header + stats + "</div>"
+    if (device.currentValue("locatorTile") != tile) sendEvent(name: "locatorTile", value: tile)
+    if (device.currentValue("locatorDetails") != details) sendEvent(name: "locatorDetails", value: details)
 }
 
 private String readablePlaceTime(value) {

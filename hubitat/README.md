@@ -30,7 +30,20 @@ The separate `PixoraLocatorOwnTracksImporter.groovy` Hubitat app can turn region
 
 The receiver works only for ten minutes after being armed and disarms after one successful list. It rejects live location messages and stores no member location, history, alerts, credentials, or phone details. Captured Place definitions expire from Hubitat automatically after one hour. Synthetic `+follow` regions and Places pending deletion are excluded. New Locator Places begin without history or alerts; an existing matching Place keeps its existing activity and settings.
 
-## Device states
+## Classic Dashboard avatar tile
+
+No separate Hubitat app is needed. Update this driver, open the virtual phone device, and select **Save Preferences** (or **Refresh**). New location reports supply the member's Planner avatar automatically; if no Planner photo exists, the Locator avatar or initial is used.
+
+1. In **Apps → Hubitat Dashboard**, open your existing classic dashboard app and include each Pixora Locator virtual phone device in its allowed devices.
+2. Open that dashboard and add a tile. Select the phone device and the **Attribute** template.
+3. Choose **locatorTile** as the attribute. Start with a tile spanning two columns and three rows, then resize to fit your dashboard's fonts and grid.
+4. Optionally add another Attribute tile using **locatorDetails** for the additional GPS accuracy, sharing mode, and battery-optimization details.
+
+The avatar tile displays member name, Place, location health, battery/charging, straight-line distance from Home, speed, movement, readable arrival time, and latest report time. It refreshes on existing deliveries and on the driver's local freshness check; it does not request GPS or poll PixoraHQ for location. Both tile values stay within classic Dashboard's 1,024-byte limit. Very long labels or avatar links can shorten the main tile; the details tile retains the extra stats when space allows. If a new attribute is missing from the dropdown, refresh the device and reload the dashboard.
+
+Photos require internet access from the dashboard browser. The driver uses an image-only link valid for at most 24 hours, renewed with location deliveries, and falls back to an initial before the link expires. Turning sharing off, disabling Hubitat delivery, or changing its target revokes access to that photo link. Treat dashboard links and device event history as private: they contain personal location stats and temporary photo links. The image endpoint grants no access to location records or account credentials. This is for **Hubitat Dashboard**, not Easy Dashboard.
+
+## Individual attributes
 
 The driver also exposes `distanceFromHome`, `speed`, and `charging` for dashboards and rules. Distance is straight-line distance to the latitude/longitude in **Hubitat → Settings → Hub Details**, not driving distance or distance to the edge of a saved Place. Check those home coordinates before using it. Each received location recalculates distance and speed. **Distance and speed units** defaults to miles/mph; kilometers/km/h is also available.
 
