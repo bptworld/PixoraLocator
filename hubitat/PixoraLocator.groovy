@@ -180,16 +180,24 @@ private void updateDashboardTiles() {
     String since = active ? tileText(device.currentValue("atPlaceSince"), 28) : "Unknown"
     String report = active ? tileText(device.currentValue("lastLocationAt"), 24) : "Unknown"
     String movement = active ? tileText(device.currentValue("movement"), 16) : "Unknown"
-    String header = "<b>${name}</b><br><b>${place}</b><br>${health}<br style='clear:both'>"
-    String stats = "Battery: ${battery} - ${charging}<br>Home: ${distance} ${units}<br>Speed: ${speed} ${units == 'km' ? 'km/h' : 'mph'}<br>Movement: ${movement}<br>Since: ${since}<br>Report: ${report}"
-    String photo = active && state.avatarUrl && now() < ((state.avatarDeadline ?: 0L) as Long) ? "<img src='${state.avatarUrl}' width='56' height='56' alt='Avatar' referrerpolicy='no-referrer' style='float:left;border-radius:50%;margin-right:8px'>" : "<span style='float:left;font-size:32px;margin-right:8px'>${tileText((state.memberName ?: device.displayName ?: 'L').toString().take(1), 1)}</span>"
-    String start = "<div style='background:#10213b;color:#fff;padding:8px;font:14px Arial;line-height:1.4'>"
-    String tile = start + photo + header + stats + "</div>"
-    // Classic Dashboard drops oversized attribute values; retain the avatar and core stats.
-    if (tile.getBytes("UTF-8").length > 1024) tile = start + photo + header + "Battery: ${battery}<br>Home: ${distance} ${units}<br>Speed: ${speed}<br>Since: ${since}</div>"
-    if (tile.getBytes("UTF-8").length > 1024) tile = start + header + stats + "</div>"
-    String details = start + header + stats + "<br>GPS: ${active ? tileText(device.currentValue('accuracy'), 8) : 'Unknown'} m<br>Sharing: ${tileText(device.currentValue('sharingMode'), 12)}<br>Battery unrestricted: ${active ? tileText(device.currentValue('batteryUnrestricted'), 7) : 'Unknown'}</div>"
-    if (details.getBytes("UTF-8").length > 1024) details = start + header + stats + "</div>"
+    String tone = health == "current" ? "#66ddbc" : health == "off" ? "#aab8ce" : "#ffcc72"
+    String start = "<div style='background:#10213b;color:#f5f8ff;border-radius:14px;padding:12px;text-align:left;font:14px Arial'>"
+    String header = "<b style='font-size:22px'>${name}</b><br><span style='color:${tone}'>${place} &middot; ${health}</span>"
+    // A background initial remains visible if the browser cannot load the private photo.
+    String photo = "<span style='float:right;position:relative;background:#29496b;border-radius:50%;width:48px;height:48px;text-align:center;line-height:48px'>${tileText((state.memberName ?: device.displayName ?: 'L').toString().take(1), 1)}"
+    if (active && state.avatarUrl && now() < ((state.avatarDeadline ?: 0L) as Long)) {
+        photo += "<img src='${state.avatarUrl}' width='48' height='48' alt='' style='position:absolute;left:0;top:0;border-radius:50%'>"
+    }
+    photo += "</span>"
+    String table = "<table style='width:100%;font:inherit;line-height:1.6;margin-top:12px'>"
+    String core = "<tr><td>Battery</td><td><b>${battery}</b>${charging == 'charging' ? ' + power' : ''}</td></tr><tr><td>From home</td><td><b>${distance}</b> ${units}</td></tr><tr><td>Speed</td><td><b>${speed}</b> ${units == 'km' ? 'km/h' : 'mph'}</td></tr>"
+    String tile = start + photo + header + table + core + "</table></div>"
+    // Use a smaller header when unusually long signed links or labels need more room.
+    if (tile.getBytes("UTF-8").length > 1024) tile = start + photo + "<b>${name}</b><br>${place}" + table + core + "</table></div>"
+    if (tile.getBytes("UTF-8").length > 1024) tile = start + header + table + core + "</table></div>"
+    String accuracy = active && device.currentValue('accuracy') instanceof Number ? new BigDecimal(device.currentValue('accuracy').toString()).setScale(1, java.math.RoundingMode.HALF_UP).toString() : "Unknown"
+    String details = start + header + table + core + "<tr><td>Power</td><td>${charging}</td></tr><tr><td>Movement</td><td>${movement}</td></tr><tr><td>Since</td><td>${since}</td></tr><tr><td>Updated</td><td>${report}</td></tr><tr><td>GPS</td><td>${accuracy} m</td></tr><tr><td>Sharing</td><td>${tileText(device.currentValue('sharingMode'), 12)}</td></tr><tr><td>Unrestricted</td><td>${active ? tileText(device.currentValue('batteryUnrestricted'), 7) : 'Unknown'}</td></tr></table></div>"
+    if (details.getBytes("UTF-8").length > 1024) details = start + "<b>${name}</b><br>${place}" + table + core + "<tr><td>Power</td><td>${charging}</td></tr><tr><td>Since</td><td>${since}</td></tr><tr><td>Updated</td><td>${report}</td></tr></table></div>"
     if (device.currentValue("locatorTile") != tile) sendEvent(name: "locatorTile", value: tile)
     if (device.currentValue("locatorDetails") != details) sendEvent(name: "locatorDetails", value: details)
 }
