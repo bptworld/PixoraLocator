@@ -1,5 +1,20 @@
 # Pixora Locator for Hubitat
 
+## Household map device: all selected users together
+
+This is a separate virtual device, created by the companion app; your existing phone tiles stay unchanged.
+
+1. Update each phone's **Pixora Locator** driver, then select **Save Preferences** or **Refresh**.
+2. In **Drivers Code**, add [PixoraLocatorHouseholdMapDevice.groovy](PixoraLocatorHouseholdMapDevice.groovy).
+3. In **Apps Code**, add [PixoraLocatorHouseholdMap.groovy](PixoraLocatorHouseholdMap.groovy), save it, then enable **OAuth** for that app code.
+4. In **Apps → Add User App**, choose **Pixora Locator Household Map**. Select your Locator phone devices, name the new map device, and choose **Done**.
+5. The app creates **Pixora Household Map** (or your chosen name). Allow this new device in the classic Dashboard app.
+6. Add an **Attribute** tile for the new device and choose **locatorMap**. Start with three columns by three rows. The existing [dashboard.css](dashboard.css) makes it fill the tile and follow resizing.
+
+The map shows all selected sharing phones, their Planner avatars or initials, and name/Place labels. **Fit** frames everyone; dragging and zooming are preserved across updates. Nearly coincident pins are spread for visibility only; their stored locations remain unchanged. Clicking a pin shows health and the last report time. Approximate positions are labeled, delayed/stale pins use amber borders, and sharing-off devices are removed on the next map refresh (up to 15 seconds). Network failure keeps the last loaded pins with an explicit warning; it cannot clear them until connectivity returns.
+
+The map polls only the selected devices' current Hubitat attributes every 15 seconds while visible. It requests no GPS, stores no location history, and adds no Render/database polling. OpenStreetMap receives the displayed map area; pinned Leaflet assets load from unpkg with integrity checks. Internet access and Hubitat cloud access are required. Keep dashboard URLs and device event history private: the map URL contains an app access token authorizing access to these selected devices' latest locations. Removing a phone from app selection excludes it immediately from subsequent responses; uninstalling the app revokes its token. No phone rebuild is needed.
+
 1. In Planner, open **Setup Options → Hubitat**. Enter the Maker API Cloud URL, App ID, and access token, then select **Connect Hubitat**.
 
    <img src="images/planner-hubitat-setup.png" width="900" alt="Planner Hubitat setup form for the Maker API Cloud URL, App ID, and access token">

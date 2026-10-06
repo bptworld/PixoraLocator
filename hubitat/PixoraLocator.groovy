@@ -24,6 +24,8 @@ metadata {
         attribute "locatorTile", "string"
         attribute "locatorDetails", "string"
         attribute "locatorMap", "string"
+        attribute "locatorMember", "string"
+        attribute "locatorAvatar", "string"
 
         command "updateLocation", [[name: "Location payload", type: "STRING", description: "Pixora Locator JSON payload"]]
         command "clearLocation"
@@ -175,6 +177,9 @@ private String tileText(value, int maximum = 32) {
 private void updateDashboardTiles() {
     boolean active = device.currentValue("sharingMode") != "off" && device.currentValue("deliveryStatus") != "disabled"
     String name = tileText(state.memberName ?: device.displayName ?: "Locator", 24)
+    sendEvent(name: 'locatorMember', value: (state.memberName ?: device.displayName ?: 'Locator').toString().take(40))
+    String currentAvatar = active && state.avatarUrl && now() < ((state.avatarDeadline ?: 0L) as Long) ? state.avatarUrl.toString() : ''
+    if (device.currentValue('locatorAvatar') != currentAvatar) sendEvent(name: 'locatorAvatar', value: currentAvatar)
     String place = "Sharing off"
     if (active) {
         String rawPlace = (device.currentValue('place') ?: '').toString()
