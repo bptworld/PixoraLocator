@@ -49,6 +49,10 @@ def initialize() {
     }
     updateDistanceFromHome(device.currentValue("latitude"), device.currentValue("longitude"))
     updateSpeed(state.speedMetersPerSecond)
+    String existingSince = (device.currentValue("atPlaceSince") ?: "").toString()
+    if (existingSince ==~ /^\d{4}-\d{2}-\d{2}T.*/) {
+        sendEvent(name: "atPlaceSince", value: readablePlaceTime(existingSince))
+    }
     unschedule()
     runEvery1Minute("refresh")
 }
@@ -85,7 +89,7 @@ def updateLocation(String payload) {
     sendEvent(name: "batteryUnrestricted", value: locationData.batteryUnrestricted instanceof Boolean ? (locationData.batteryUnrestricted ? "yes" : "no") : "unknown")
     sendEvent(name: "sharingMode", value: locationData.sharingMode in ["precise", "approximate", "off"] ? locationData.sharingMode : "unknown")
     sendEvent(name: "movement", value: (locationData.movement ?: "unknown").toString())
-    sendEvent(name: "atPlaceSince", value: (locationData.atPlaceSince ?: "").toString())
+    sendEvent(name: "atPlaceSince", value: readablePlaceTime(locationData.atPlaceSince))
     sendEvent(name: "locationHealth", value: locationData.locationHealth in ["current", "delayed", "stale", "one-time"] ? locationData.locationHealth : "current")
     state.oneTimeReport = locationData.locationHealth == "one-time"
     state.healthAgeOffset = Math.max(reportAge, locationData.locationHealth == "stale" ? 30 * 60_000L + 1 : locationData.locationHealth == "delayed" ? 5 * 60_000L + 1 : 0L)
@@ -140,6 +144,19 @@ def clearLocation() {
     state.remove("lastDelivery")
     state.remove("healthAgeOffset")
     state.remove("oneTimeReport")
+}
+
+private String readablePlaceTime(value) {
+    if (!value) return ""
+    try {
+        long timestamp = java.time.OffsetDateTime.parse(value.toString()).toInstant().toEpochMilli()
+        TimeZone hubTimeZone = location?.timeZone ?: TimeZone.getDefault()
+        java.text.SimpleDateFormat formatter = new java.text.SimpleDateFormat("MMM d, yyyy 'at' h:mm a", java.util.Locale.US)
+        formatter.setTimeZone(hubTimeZone)
+        return formatter.format(new Date(timestamp))
+    } catch (Exception ignored) {
+        return "Unknown"
+    }
 }
 
 private boolean validCoordinate(value, int maximum) {

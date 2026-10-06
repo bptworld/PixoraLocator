@@ -38,7 +38,7 @@ The driver also exposes `distanceFromHome`, `speed`, and `charging` for dashboar
 
 The virtual device shows the phone's latest location information directly in Hubitat, including a report time formatted in the hub's local timezone.
 
-Additional rule attributes are `locationHealth` (current/delayed/stale/one-time/off), `movement`, `atPlaceSince` (UTC timestamp), `sharingMode`, and `batteryUnrestricted` (yes/no/unknown). The driver checks report age locally each minute: over five minutes is delayed and over thirty minutes is stale. This does not request another GPS reading. Battery Unrestricted reports Android battery-optimization exemption, not every manufacturer's background restriction; unsupported or older apps report unknown. At-place time is included only with precise sharing. Install the updated driver code and phone app to receive the new phone fields.
+Additional rule attributes are `locationHealth` (current/delayed/stale/one-time/off), `movement`, `atPlaceSince` (readable date/time in the hub's timezone, such as Oct 4, 2026 at 12:33 PM), `sharingMode`, and `batteryUnrestricted` (yes/no/unknown). The driver checks report age locally each minute: over five minutes is delayed and over thirty minutes is stale. This does not request another GPS reading. Battery Unrestricted reports Android battery-optimization exemption, not every manufacturer's background restriction; unsupported or older apps report unknown. At-place time is included only with precise sharing. Install the updated driver code and phone app to receive the new phone fields.
 
 <img src="images/hubitat-current-states.png" width="500" alt="Hubitat Pixora Locator virtual device showing current location states with fictional coordinates">
 
