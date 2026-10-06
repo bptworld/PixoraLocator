@@ -223,13 +223,21 @@ private void updateDashboardTiles() {
         omitted++
         tile = start + header + table + smallRows.join('') + "</table><small>+${omitted} in details</small></div>"
     }
-    List detailRows = orderedRows.collect { row -> "<tr><td>${row[0]}</td><td>${row[1]}</td></tr>" }
-    String details = start + header + table + detailRows.join('') + "</table></div>"
+    // HTML permits omitted cell/row end tags; keep room for the private avatar.
+    List detailRows = orderedRows.collect { row -> "<tr><td>${row[0]}<td>${row[1]}" }
+    String detailPhoto = currentAvatar ? "<img src='${currentAvatar}' width='48' height='48' alt='' style='float:right;border-radius:50%'>" : ""
+    String detailHeader = "<b>${name}</b><br><span style='color:${tone}'>${place} &middot; ${health}</span>"
+    String details = start + detailPhoto + detailHeader + table + detailRows.join('') + "</table></div>"
+    // Keep all stats ahead of an unusually long image ticket.
+    if (details.getBytes("UTF-8").length > 1024) {
+        detailPhoto = ""
+        details = start + detailHeader + table + detailRows.join('') + "</table></div>"
+    }
     int hiddenDetails = 0
     while (details.getBytes("UTF-8").length > 1024 && detailRows) {
         detailRows.remove(detailRows.size() - 1)
         hiddenDetails++
-        details = start + header + table + detailRows.join('') + "</table><small>+${hiddenDetails} omitted: tile limit</small></div>"
+        details = start + detailPhoto + detailHeader + table + detailRows.join('') + "</table><small>+${hiddenDetails} omitted: tile limit</small></div>"
     }
     if (device.currentValue("locatorTile") != tile) sendEvent(name: "locatorTile", value: tile)
     if (device.currentValue("locatorDetails") != details) sendEvent(name: "locatorDetails", value: details)
