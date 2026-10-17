@@ -34,7 +34,7 @@ REGISTRATIONS_PATH = Path("/data/registrations.json")
 MIGRATION_SOURCE_PATH = Path("/data/migration-source-id")
 PIXORA_URL = "https://planner.pixorahq.com/api/locator/home-assistant/current"
 HA_API = "http://supervisor/core/api"
-APP_VERSION = "1.5.1"
+APP_VERSION = "1.5.2"
 INGRESS_PORT = 8099
 MAX_MIGRATION_ZONES = 50
 MAX_MIGRATION_FILE_BYTES = 512_000
@@ -488,7 +488,7 @@ def status_page(bridge: LocatorBridge) -> bytes:
         migration_error = f'<p class="migration-error">{html.escape(str(exc))}</p>'
     document = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pixora Locator</title>
+<title>Pixora Locator - Old</title>
 <style>
 :root{{color-scheme:light dark;--bg:#eef6ff;--card:#fff;--ink:#092d63;--muted:#647da2;--line:#c9dcf4;--blue:#3d63ff;--mint:#4ee0c2;--bad:#b33b32}}
 @media(prefers-color-scheme:dark){{:root{{--bg:#061626;--card:#102842;--ink:#f4f8ff;--muted:#a9bdd9;--line:#315477;--blue:#86a0ff;--mint:#58dfc2;--bad:#ff9289}}}}
@@ -507,7 +507,7 @@ h2{{margin:0 0 8px;font-size:22px}}p{{margin:6px 0;color:var(--muted)}}.message{
 .migration button{{width:100%;min-height:50px;margin-top:18px;border:0;border-radius:12px;background:var(--blue);color:#fff;font-weight:900;cursor:pointer}}
 .migration .selection-count{{margin-top:12px;font-weight:800;color:var(--ink)}}.migration .warning{{margin-top:14px;font-size:13px}}.migration-error{{color:var(--bad);font-weight:800}}
 </style></head><body><main class="{html.escape(state)}">
-<header><div><div class="brand">PIXORA LOCATOR</div><h1>Home Assistant</h1></div><span class="badge">{html.escape(badge)}</span></header>
+<header><div><div class="brand">PIXORA LOCATOR - OLD</div><h1>Home Assistant</h1></div><span class="badge">{html.escape(badge)}</span></header>
 <section class="card"><h2>Connection status</h2><p class="message">{message}</p><p>Last successful sync: {last_sync}</p></section>
 <section class="card"><h2>Household devices ({int(status.get('deviceCount') or 0)})</h2>{device_list}</section>
 <section class="card migration"><h2>Migrate Home Assistant zones</h2><p>Create a one-time Locator file that turns your selected Home Assistant zones into new Locator Places.</p>{migration_error}

@@ -1,5 +1,5 @@
-name: "Pixora Locator"
-version: "1.5.1"
+name: "Pixora Locator - Old"
+version: "1.5.2"
 slug: "pixora_locator"
 description: "LEGACY APP — Open Information for the move to PixoraHQforHA. Existing settings are preserved."
 url: "https://github.com/bptworld/PixoraLocator"
@@ -24,3 +24,5 @@ schema:
   poll_seconds: "int(15,300)"
   distance_units: "list(mi|km)"
 panel_icon: "mdi:map-marker-account"
+
+panel_title: "Pixora Locator - Old"

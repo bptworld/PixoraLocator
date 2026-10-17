@@ -1,3 +1,8 @@
+# 1.5.2
+
+- Rename this legacy app to **Pixora Locator - Old** so it is easy to distinguish from the current PixoraHQforHA app.
+- Keep the existing app slug, configuration and saved data unchanged.
+
 # 1.5.1
 
 **IMPORTANT — This app has moved to PixoraHQ for Home Assistant.**
