@@ -1,3 +1,14 @@
+> [!WARNING]
+> **DEPRECATED — Home Assistant app moved to PixoraHQforHA.**
+>
+> Use **[PixoraHQforHA](https://github.com/bptworld/PixoraHQforHA)** for new installations and future HA app releases.
+> This app's new directory is **[pixora_locator](https://github.com/bptworld/PixoraHQforHA/tree/main/pixora_locator)**.
+>
+> Existing installs keep working: this directory and its code have been retained.
+> No automatic migration occurs. Back up settings/data and stop the old app before
+> starting a replacement from the new repository. Keep the old install until the
+> replacement is verified. Other platform components in this repository are unaffected.
+
 # PixoraLocator
 
 Official Pixora Locator integrations for Home Assistant, Hubitat, and HomeSeer. The phone APK is distributed separately and is not stored in this repository.
